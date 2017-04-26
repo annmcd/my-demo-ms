@@ -4,7 +4,7 @@
   <groupId>ie.aib.msf</groupId>
   <artifactId>my-demo-ms</artifactId>
   
-  <version>1.0.42-SNAPSHOT</version>
+  <version>0.0.0-SNAPSHOT</version>
   <organization>
     <name>Allied Irish Bank PLC</name>
   </organization>
@@ -18,9 +18,7 @@
 		<maven.surefire.plugin.version>2.4.3</maven.surefire.plugin.version>
 
 		<project.scm.id>git-server</project.scm.id>
-	<developmentVer />
-	<releaseVer />
-		
+			
 	<!--AMD Provide Sonar with the jacoco output -->
 		<failFlag>true</failFlag> <!-- allows us to test pipeline with projects which contain inadequate quality standards and proceed regardless-->
 		<jacoco-maven-plugin.version>0.7.2.201409121644</jacoco-maven-plugin.version>
@@ -58,9 +56,8 @@
   <scm>
    <connection>scm:git:https://github.com/annmcd/Demo.git</connection>
    <url>http://github.com/annmcd/Demo.git</url>
-  <developerConnection>scm:git:https://github.com/annmcd/Demo.git</developerConnection>
+  <developerConnection>scm:git:https://github.com/annmcd/my-demo-ms.git</developerConnection>
  <!-- <developerConnection>scm:git:git@github.com:annmcd/Demo.git</developerConnection> -->
-   <tag>my-demo-ms-1.0.40</tag>
   </scm>
   
  
