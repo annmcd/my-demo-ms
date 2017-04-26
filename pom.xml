@@ -11,7 +11,7 @@
   
   <properties>
 		<project.scm.id>git-scm-server</project.scm.id>
-       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   	<!--AMD start properties -->
 		<maven.surefire.plugin.version>2.4.3</maven.surefire.plugin.version>
 	<!--AMD Provide Sonar with the jacoco output -->
@@ -36,7 +36,7 @@
 		<exclusion.suffix />
 		<excludedPackage />
 	
-		<!--  Package which contains classes not included for code coverage calculation -->
+		<!-- Package which contains classes not included for code coverage calculation -->
 		<!--<excludedPackage>ie/aib/msf/model/**/*</excludedPackage> -->
 		<sonar.plugin.version>2.7.1</sonar.plugin.version>
 		<sonar.login>admin</sonar.login>
@@ -56,26 +56,26 @@
   
  
   <profiles>
-  		<profile>
-			<id>bugs-style-check</id>
-			<build>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-checkstyle-plugin</artifactId>
-					<version>2.9.1</version>
-					<executions>
-						<execution>
-						<id>checkstyle</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
-						<configuration>
-							<failOnViolation>${failFlag}</failOnViolation>
-						</configuration>
-						</execution>
-					</executions>
+  	<profile>
+		<id>bugs-style-check</id>
+		<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.9.1</version>
+				<executions>
+					<execution>
+					<id>checkstyle</id>
+					<phase>validate</phase>
+					<goals>
+						<goal>check</goal>
+					</goals>
+					<configuration>
+						<failOnViolation>${failFlag}</failOnViolation>
+					</configuration>
+					</execution>
+				</executions>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
@@ -98,31 +98,31 @@
 				</plugin>
 			</plugins>
 		  </build>
-		</profile>
+	</profile>
 
   
   
-	   <profile>
+	<profile>
 		<id>unit-tests</id>
-			<build>
+		<build>
 			<plugins>
-			 <plugin>
+				<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
-				   <version>${maven.surefire.plugin.version}</version>
-					<executions>
-					  <execution>
-						<id>default-test</id>
-						<phase>test</phase>
+				<version>${maven.surefire.plugin.version}</version>
+				<executions>
+				  <execution>
+					<id>default-test</id>
+					<phase>test</phase>
 						<goals>
-							  <goal>test</goal>
+						  <goal>test</goal>
 						</goals>
 						<configuration>
-							 <reuseForks>true</reuseForks>
+							<reuseForks>true</reuseForks>
 							<forkCount>1C</forkCount>
-						   <argLine>${surefireArgLine}</argLine>
+						    <argLine>${surefireArgLine}</argLine>
 						   
-						  <skipTests>${skipTests}</skipTests>
-						  <!--identify the unit tests -->
+							<skipTests>${skipTests}</skipTests>
+							<!--identify the unit tests -->
 							<includes>
 								<include>**/*Test.java</include>
 							</includes>
@@ -141,15 +141,15 @@
 					<executions>
 					  <!-- pre-unit-test execution helps setting up some maven property,
 						which will be used later by JaCoCo -->
-						  <execution>
+						<execution>
 							<id>pre-unit-test</id>
 							<goals>
-								 <goal>prepare-agent</goal>
+								<goal>prepare-agent</goal>
 							</goals>
-								<configuration>
-									 <append>true</append>
-									 <destFile>${project.build.directory}/jacoco-ut.exec</destFile>
-									  <propertyName>surefireArgLine</propertyName> 
+							<configuration>
+								<append>true</append>
+								<destFile>${project.build.directory}/jacoco-ut.exec</destFile>
+								<propertyName>surefireArgLine</propertyName> 
 								</configuration>
 						   </execution>
 						   <execution>
@@ -164,9 +164,9 @@
 									<exclude>**/IT*.java</exclude>
 									<exclude>**/*IT.java</exclude>
 									<exclude>**/model/*</exclude>
-								   </excludes> 
-								  <!-- output file with report data.session.executionRootDirectory -->
-								  <dataFile>${project.build.directory}/jacoco-ut.exec</dataFile> <!-- targets to the site folder the xml and html reports -->
+								  </excludes> 
+								   <!-- output file with report data.session.executionRootDirectory -->
+								    <dataFile>${project.build.directory}/jacoco-ut.exec</dataFile> <!-- targets to the site folder the xml and html reports -->
 								  <!-- output directory for the site HTML and xml reports. -->
 								  <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
 								   <rules>
@@ -191,66 +191,66 @@
 										   </limits>
 									 </rule>
 								</rules>
-							   </configuration>
-							</execution>
+							</configuration>
+						</execution>
 					 </executions>
 				  </plugin>
 			</plugins>
-		  </build>
-		</profile>
+	  </build>
+	</profile>
 	
 	
-	   <profile>
-		  <id>integration-tests</id>
-	    	<build>
-			<plugins>
-			 <plugin>
-				  <artifactId>maven-failsafe-plugin</artifactId>
-					<version>${failsafe.version}</version>
-					<executions>
-					  <execution>
-						   <id>integration-tests</id>
-							<goals>
-								<goal>integration-test</goal>
-								<goal>verify</goal>
-							</goals>
-							<configuration>
-								<reuseForks>true</reuseForks>
-								<forkCount>1C</forkCount>
-								 <argLine>${failsafeArgLine}</argLine>
-								  <skipTests>${skipTests}</skipTests>
+	<profile>
+		<id>integration-tests</id>
+	    <build>
+		<plugins>
+		 <plugin>
+		    <artifactId>maven-failsafe-plugin</artifactId>
+			<version>${failsafe.version}</version>
+			<executions>
+			  <execution>
+				<id>integration-tests</id>
+				<goals>
+					<goal>integration-test</goal>
+					<goal>verify</goal>
+				</goals>
+				<configuration>
+					<reuseForks>true</reuseForks>
+					<forkCount>1C</forkCount>
+					 <argLine>${failsafeArgLine}</argLine>
+				    <skipTests>${skipTests}</skipTests>
 								   <!--Identify the integration tests -->
-									<includes>
-										<include>**/*IT.java</include>
-									</includes>
-									<excludes>
-										 <exclude>**/*Test.java</exclude>
-										 <exclude>**/model/*</exclude>
-									</excludes> 
-									<argLine>${failsafeArgLine} -XX:PermSize=128m -XX:MaxPermSize=512m -XX:-UseSplitVerifier -noverify</argLine>
-							</configuration>
-						</execution>
-					</executions>
-				  </plugin>
-				  <plugin>
-					<groupId>org.jacoco</groupId>
-					<artifactId>jacoco-maven-plugin</artifactId>
-					<version>${jacoco-maven-plugin.version}</version>
-					<executions>
+					<includes>
+						<include>**/*IT.java</include>
+					</includes>
+					<excludes>
+						<exclude>**/*Test.java</exclude>
+		        		<exclude>**/model/*</exclude>
+					</excludes> 
+					<argLine>${failsafeArgLine} -XX:PermSize=128m -XX:MaxPermSize=512m -XX:-UseSplitVerifier -noverify</argLine>
+				</configuration>
+			  </execution>
+			 </executions>
+		    </plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco-maven-plugin.version}</version>
+				<executions>
 					  <!-- pre-unit-test execution helps setting up some maven property,
 						which will be used later by JaCoCo -->
-					  <execution>
-						<id>pre-integration-test</id>
-						<goals>
-						  <goal>prepare-agent</goal>
-						</goals>
-						<configuration>
-							 <append>true</append>
-							 <destFile>${project.build.directory}/jacoco-it.exec</destFile>
-							<propertyName>failsafeArgLine</propertyName>
-						</configuration>
-					  </execution>
-					  <execution>
+				  <execution>
+					<id>pre-integration-test</id>
+					<goals>
+					  <goal>prepare-agent</goal>
+					</goals>
+					<configuration>
+						<append>true</append>
+						 <destFile>${project.build.directory}/jacoco-it.exec</destFile>
+						<propertyName>failsafeArgLine</propertyName>
+					</configuration>
+					</execution>
+					<execution>
 						<id>post-integration-test</id>
 						<phase>post-integration-test</phase>
 						<goals>
@@ -258,7 +258,7 @@
 							<goal>report</goal>
 						</goals>
 						<configuration>
-						 <excludes>
+						  <excludes>
 							<exclude>**/*Test.java</exclude>
 							<exclude>**/model/*</exclude>
 						  </excludes> 
@@ -282,23 +282,23 @@
 							  </rule>
 							</rules>
 					   </configuration>
-					  </execution>
-					 </executions>
-				  </plugin>
-				</plugins>
-			</build>
-		</profile>
+					 </execution>
+				   </executions>
+				</plugin>
+			</plugins>
+		</build>
+	</profile>
 	
-		<profile>
-		  <id>style-check</id>
-			<build>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-checkstyle-plugin</artifactId>
-					<version>2.9.1</version>
-					<executions>
-						<execution>
+	<profile>
+		<id>style-check</id>
+		<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.9.1</version>
+				<executions>
+					<execution>
 						<id>checkstyle</id>
 						<phase>validate</phase>
 						<goals>
@@ -307,59 +307,47 @@
 						<configuration>
 							<failOnViolation>true</failOnViolation>
 						</configuration>
-						</execution>
-					</executions>
-				</plugin> 
-			 </plugins>
-			</build>
-		</profile>
-	
-	
-	  <profile>
-			<id>deploy-snapshot</id> 
-			<build>
-			
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-release-plugin</artifactId>
-					<version>2.5.3</version>
-		 
-					  <executions>
-						<execution>
-							<phase>default-deploy</phase>
-							<goals>
-								<goal>deploy</goal>
-							</goals>
-							<configuration>
-								<packaging>jar</packaging>
-								<generatePom>true</generatePom>
-								<url>${project.distributionManagement.snapshotRepository.url}</url>
-								<artifactId>${project.artifactId}</artifactId>
-								<groupId>${project.groupId}</groupId>
-								<version>${project.version}</version>
-								<file>${project.build.directory}/${project.artifactId}-${project.version}.jar</file>
-							</configuration>
-					    </execution>
-					  </executions>
-				</plugin>
-			</plugins>
+					</execution>
+				</executions>
+			</plugin> 
+		 </plugins>
 		</build>
-	  </profile>
+	</profile>
+	
+	
+  <profile>
+	<id>deploy-snapshot</id> 
+	<build>
+	<plugins>
+		<plugin>
+			<groupId>org.apache.maven.plugins</groupId>
+			<artifactId>maven-release-plugin</artifactId>
+			<version>2.5.3</version>
+			  <executions>
+				<execution>
+					<phase>default-deploy</phase>
+					<goals>
+  					<goal>deploy</goal>
+					</goals>
+					<configuration>
+						<packaging>jar</packaging>
+						<generatePom>true</generatePom>
+						<url>${project.distributionManagement.snapshotRepository.url}</url>
+						<artifactId>${project.artifactId}</artifactId>
+						<groupId>${project.groupId}</groupId>
+						<version>${project.version}</version>
+						<file>${project.build.directory}/${project.artifactId}-${project.version}.jar</file>
+					</configuration>
+			    </execution>
+			  </executions>
+    		</plugin>
+	    </plugins>
+	  </build>
+    </profile>
 	  
 	  
 	  
-	 <profile>
-		  <id>release-artefact</id> 
-			<build>
-			<plugins>
-				
-			  </plugins>
-			</build>
-		  </profile> 
-		  
-	</profiles>
-	  	  
+	
 
  
   <!-- Deployment to Nexus-->
@@ -379,34 +367,32 @@
  
   
   <build>
-  	   <plugins>
-	   <plugin>
-		   <artifactId>maven-release-plugin</artifactId>
-			<version>2.5.3</version>
-			<configuration>
-			<url>${project.distributionManagement.repository.url}</url> 
-		   </configuration>
-			<dependencies>
-			  <dependency>
-				 <groupId>org.apache.maven.scm</groupId>
-				 <artifactId>maven-scm-provider-gitexe</artifactId>
-				 <version>1.9.5</version>
-				</dependency>
-			</dependencies>
-	    </plugin>
-	   
-	   
-		 <plugin>
+  	<plugins>
+	  <plugin>
+	   <artifactId>maven-release-plugin</artifactId>
+		<version>2.5.3</version>
+		<configuration>
+		<url>${project.distributionManagement.repository.url}</url> 
+	   </configuration>
+	   <dependencies>
+		<dependency>
+			<groupId>org.apache.maven.scm</groupId>
+			<artifactId>maven-scm-provider-gitexe</artifactId>
+			<version>1.9.5</version>
+		</dependency>
+		</dependencies>
+    </plugin>
+		<plugin>
 			<groupId>org.codehaus.mojo</groupId>
 			<artifactId>build-helper-maven-plugin</artifactId>
 			<version>3.0.0</version>
-		 </plugin>
-	     <plugin>
+		</plugin>
+	    <plugin>
 	       	  <groupId>junit</groupId>
 			  <artifactId>junit</artifactId>
 			  <version>4.11</version>
-	      </plugin> 
-		  <plugin>
+	    </plugin> 
+		<plugin>
 		    <groupId>org.apache.maven.plugins</groupId>
 			<artifactId>maven-jar-plugin</artifactId>
 			<version>2.4</version>
@@ -421,22 +407,20 @@
 				</manifestEntries>
 			  </archive>
 			</configuration>
-		 </plugin>
-     	 <plugin>
+		</plugin>
+     	<plugin>
 			<groupId>org.apache.maven.plugins</groupId>
 			<artifactId>maven-install-plugin</artifactId>
 			<version>2.4</version>
-		  </plugin>
+		</plugin>
 		  
-	      <plugin>
+	    <plugin>
 			<groupId>org.apache.maven.plugins</groupId>
 			<artifactId>maven-deploy-plugin</artifactId>
 			<version>2.8</version>
-		 </plugin>
-		 
-	
-	 </plugins>
-	
+		</plugin>
+	</plugins>
+
 	<pluginManagement>
 	   <plugins />
      </pluginManagement>   
