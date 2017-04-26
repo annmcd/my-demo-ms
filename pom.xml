@@ -4,7 +4,7 @@
   <groupId>ie.aib.msf</groupId>
   <artifactId>my-demo-ms</artifactId>
   
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.0.0-SNAPSHOT</version>
   <organization>
     <name>Allied Irish Bank PLC</name>
   </organization>
@@ -58,7 +58,6 @@
    <url>http://github.com/annmcd/Demo.git</url>
   <developerConnection>scm:git:https://github.com/annmcd/my-demo-ms.git</developerConnection>
  <!-- <developerConnection>scm:git:git@github.com:annmcd/Demo.git</developerConnection> -->
-    <tag>HEAD</tag>
   </scm>
   
  
