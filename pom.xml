@@ -10,12 +10,11 @@
   <url>https://aib.ie</url>
   
   <properties>
+  		<!--AMD start properties -->
 		<project.scm.id>git-scm-server</project.scm.id>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  	<!--AMD start properties -->
 		<maven.surefire.plugin.version>2.4.3</maven.surefire.plugin.version>
-	<!--AMD Provide Sonar with the jacoco output -->
-		<failFlag>true</failFlag> <!-- allows us to test pipeline with projects which contain inadequate quality standards and proceed regardless-->
+		<failFlag>true</failFlag> 
 		<jacoco-maven-plugin.version>0.7.2.201409121644</jacoco-maven-plugin.version>
 		<failsafe.version>2.15</failsafe.version>
 		<findbugs.version>3.0.4</findbugs.version>
