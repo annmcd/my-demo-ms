@@ -29,7 +29,6 @@
 	    <sonar.exclusions>src/main/resources/**</sonar.exclusions>
 	    <sonar.test.exclusions>src/java/test/java/**, src/test/java/resources/**, src/test/resources/**</sonar.test.exclusions>
 	    <sonar.dynamic>reuseReports</sonar.dynamic> 
-
 		<!-- Maximum number of classes that can be missed per project -->
 		<max.classes.missed>1</max.classes.missed> <!-- default value, jenkins job overrrides with param value-->
 		<!--Target instruction coverage -->
