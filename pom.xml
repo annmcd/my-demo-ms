@@ -4,13 +4,15 @@
   <groupId>ie.aib.msf</groupId>
   <artifactId>my-demo-ms</artifactId>
   <version>0.0.2-SNAPSHOT</version>
+  <!--added to manifest -->
   <organization>
-    <name>Allied Irish Bank PLC</name>
+    <name>Allied Irish Bank PLC</name> 
   </organization>
   <url>https://aib.ie</url>
   
   <properties>
-  		<!--AMD start properties -->
+  
+  		<!--Phase2 Pipeline Properties Begin -->
 		<project.scm.id>git-scm-server</project.scm.id>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.surefire.plugin.version>2.4.3</maven.surefire.plugin.version>
@@ -29,23 +31,16 @@
 	    <sonar.dynamic>reuseReports</sonar.dynamic> 
 
 		<!-- Maximum number of classes that can be missed per project -->
-		<max.classes.missed>1</max.classes.missed>
+		<max.classes.missed>1</max.classes.missed> <!-- default value, jenkins job overrrides with param value-->
 		<!--Target instruction coverage -->
-		<min.instruction.coverage>0.95</min.instruction.coverage>
-		<exclusion.suffix />
-		<excludedPackage />
-	
-		<!-- Package which contains classes not included for code coverage calculation -->
-		<!--<excludedPackage>ie/aib/msf/model/**/*</excludedPackage> -->
+		<min.instruction.coverage>0.95</min.instruction.coverage> <!-- default value, jenkins job overrrides with param value-->
 		<sonar.plugin.version>2.7.1</sonar.plugin.version>
 		<sonar.login>admin</sonar.login>
 		<sonar.password>admin</sonar.password>
 		<sonar.host.url>admin</sonar.host.url>
 		<project.properties.file />
-		<!--AMD end property additions-->
+		<!--Phase2 Pipeline Properties End -->
   </properties>
-  
-  
   
   <scm>
    <connection>scm:git:https://github.com/annmcd/Demo.git</connection>
