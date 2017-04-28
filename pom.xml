@@ -21,7 +21,8 @@
 		<failsafe.version>2.15</failsafe.version>
 		<findbugs.version>3.0.4</findbugs.version>
 		<sonar.jacoco.itReportPath>${project.build.directory}/jacoco-it.exec</sonar.jacoco.itReportPath> 
-		<sonar.junit.reportsPath>${project.build.directory}/surefire-reports</sonar.junit.reportsPath>
+		<sonar.jacoco.itReportPath>${project.build.directory}/jacoco-ut.exec</sonar.jacoco.itReportPath> 
+				<!--<sonar.junit.reportsPath>${project.build.directory}/surefire-reports</sonar.junit.reportsPath> -->
 		<sonar.jacoco.jar>${basedir}/lib/jacocoagent.jar</sonar.jacoco.jar>
   		<sonar.core.codeCoveragePlugin>jacoco</sonar.core.codeCoveragePlugin>
    		<sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
@@ -32,7 +33,7 @@
 		<!-- Maximum number of classes that can be missed per project -->
 		<max.classes.missed>1</max.classes.missed> <!-- default value, jenkins job overrrides with param value-->
 		<!--Target instruction coverage -->
-		<min.instruction.coverage>0.95</min.instruction.coverage> <!-- default value, jenkins job overrrides with param value-->
+		<min.instruction.coverage>0.20</min.instruction.coverage> <!-- default value, jenkins job overrrides with param value-->
 		<sonar.plugin.version>2.7.1</sonar.plugin.version>
 		<sonar.login>admin</sonar.login>
 		<sonar.password>admin</sonar.password>
