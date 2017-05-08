@@ -35,10 +35,6 @@
 		<!--Target instruction coverage -->
 		<min.instruction.coverage>0.00</min.instruction.coverage> <!-- default value, jenkins job overrrides with param value-->
 		<sonar.plugin.version>2.7.1</sonar.plugin.version>
-		<!--<sonar.login>admin</sonar.login>
-		<sonar.password>admin</sonar.password>
-		<sonar.host.url>admin</sonar.host.url> -->
-		<project.properties.file />
 		<!--Phase2 Pipeline Properties End -->
   </properties>
   
