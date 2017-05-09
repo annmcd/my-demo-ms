@@ -41,7 +41,6 @@
    <connection>scm:git:https://github.com/annmcd/Demo.git</connection>
    <url>http://github.com/annmcd/Demo.git</url>
   <developerConnection>scm:git:https://github.com/annmcd/my-demo-ms.git</developerConnection>
-    <tag>0.0.2</tag>
   </scm>
   
  
@@ -356,11 +355,10 @@
   
   <build>
   	<plugins>
-      
-	    <plugin>
+        <plugin>
 			<groupId>org.sonarsource.scanner.maven</groupId>
 			<artifactId>sonar-maven-plugin</artifactId>
-			<version>3.3.5</version>
+			<version>3.3.3</version>
         </plugin>
 	  
 	    <plugin>
