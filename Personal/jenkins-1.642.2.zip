@@ -1,0 +1,1861 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+
+<!--
+Trustwave's Download Status Page
+Supports Internet Explorer 4.* - 6.*,  Netscape 4.* - 7.*, Mozilla, Opera 5.* - 7.*
+by Konstantin-David, 2005
+Trustwave Software , all rights reserved
+-->
+
+<head>
+<title>Download Status Page</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
+</head>
+<script>
+<!--
+
+// ------------------------------------------------------------------------------------------------------------
+//
+//	The following functions allow us to emulate the convenient innerHTML property for HTML elements in Mozilla.
+//
+// -------------------------------------------------------------------------------------------------------------
+
+// ------------------------------------------------------------------------------------------------------------
+// Global Variables
+// -------------------------------------------------------------------------------------------------------------
+
+var scanningPageStatusProgress = 0;
+
+function getInnerHTML(node) {
+   if (isIE()) return (node.innerHTML);
+   var str = "";
+   for (var i=0; i<node.childNodes.length; i++)
+   		str += getOuterHTML(node.childNodes.item(i));
+   return str;
+}
+
+var _leafElems = ["IMG", "HR", "BR", "INPUT"];
+var leafElems = {};
+for (var i=0; i<_leafElems.length; i++)
+   leafElems[_leafElems[i]] = true;
+
+function getOuterHTML(node) {
+   if (isIE()) return (node.outerHTML);
+   var str = "";
+
+   switch (node.nodeType) {
+      case 1: // ELEMENT_NODE
+         str += "<" + node.nodeName;
+         for (var i=0; i<node.attributes.length; i++) {
+            if (node.attributes.item(i).nodeValue != null) {
+               str += " "
+               str += node.attributes.item(i).nodeName;
+               str += "=\"";
+               str += node.attributes.item(i).nodeValue;
+               str += "\"";
+            }
+         }
+
+         if (node.childNodes.length == 0 && leafElems[node.nodeName])
+            str += ">";
+         else {
+            str += ">";
+            str += getInnerHTML(node);
+            str += "<" + node.nodeName + ">"
+         }
+         break;
+
+      case 3:   //TEXT_NODE
+         str += node.nodeValue;
+         break;
+
+      case 4: // CDATA_SECTION_NODE
+         str += "<![CDATA[" + node.nodeValue + "]]>";
+         break;
+
+      case 5: // ENTITY_REFERENCE_NODE
+         str += "&" + node.nodeName + ";"
+         break;
+
+      case 8: // COMMENT_NODE
+         str += "<!--" + node.nodeValue + "-->"
+         break;
+   }
+
+   return str;
+}
+
+setInnerHTML = function (node, strHTML) {
+   if (isIE()) { node.innerHTML = strHTML; return (strHTML); }
+   var r = node.ownerDocument.createRange();
+   r.selectNodeContents(node);
+   r.deleteContents();
+   var df = r.createContextualFragment(strHTML);
+   node.appendChild(df);
+   return strHTML;
+}
+
+setOuterHTML = function (node, strHTML) {
+   if (isIE()) { node.outerHTML = strHTML; return (strHTML); }
+   var r = node.ownerDocument.createRange();
+   r.setStartBefore(node);
+   var df = r.createContextualFragment(strHTML);
+   node.parentNode.replaceChild(df, node);
+   return strHTML;
+}
+
+// --------------------------------------------------------------------------
+//
+// 	Functions for general purposes
+//
+//---------------------------------------------------------------------------
+
+// Detects if the current browser is Internet Explorer.
+isIE = function(){
+	var agt = navigator.userAgent.toLowerCase();
+    var is_ie     = ((agt.indexOf("msie") != -1) && (agt.indexOf("opera") == -1));
+	return (is_ie);
+}
+
+
+// Gets the top-most frame in the elements heirarchy. The window parameter
+// must be a frame or iframe.
+
+getMainFrame= function(eFrame){
+	// Attempts to get the parent frame element.
+	(eFrame.frameElement)?eRetFrame=eFrame.frameElement:eRetFrame=eFrame;
+	var eParFrame = eFrame.frameElement;
+
+	// If there is no parent frame return the window or its frameElement.
+	// Climbs up the elements hierarchy to the top-most frame.
+
+	while (eParFrame != null){
+		(eParFrame.frameElement)?eRetFrame=eParFrame.frameElement:eRetFrame=eParFrame;
+		eParFrame = eParFrame.frameElement;
+    }
+    return eRetFrame;
+}
+
+getObjectLeft = function(eElement){
+    var nLeftPos = eElement.offsetLeft;
+    var eParElement = eElement.offsetParent;
+    while (eParElement != null){
+        nLeftPos += eParElement.offsetLeft;
+        eParElement = eParElement.offsetParent;
+    }
+    return nLeftPos;
+}
+
+getObjectTop= function(eElement){
+    var nTopPos = eElement.offsetTop;
+    var eParElement = eElement.offsetParent;
+    while (eParElement != null){
+        nTopPos += eParElement.offsetTop;
+        eParElement = eParElement.offsetParent;
+    }
+    return nTopPos;
+}
+
+getObjectWidth = function(elem)  {
+    var result = 100;
+    if (elem.offsetWidth) {
+        result = elem.offsetWidth;
+    } else if (elem.clip && elem.clip.width) {
+        result = elem.clip.width;
+    } else if (elem.style && elem.style.pixelWidth) {
+        result = elem.style.pixelWidth;
+    } else if (elem.currentStyle && elem.currentStyle.width){
+		result = elem.currentStyle.width;
+	} else if (elem.runtimeStyle && elem.runtimeStyle.width) {
+		result = elem.runtimeStyle.width
+	}
+    return (result);
+}
+
+getObjectHeight = function (elem)  {
+    var result = 100;
+    if (elem.offsetHeight) {
+        result = elem.offsetHeight;
+    } else if (elem.clip && elem.clip.height) {
+        result = elem.clip.height;
+    } else if (elem.style && elem.style.pixelHeight) {
+        result = elem.style.pixelHeight;
+    } else if (elem.currentStyle && elem.currentStyle.height){
+		result = elem.currentStyle.height;
+	} else if (elem.runtimeStyle && elem.runtimeStyle.height) {
+		result = elem.runtimeStyle.height
+	}
+    return (result);
+}
+
+
+
+detectSelects = function (x, y, width, height){
+	aHidSelects = new Array ();
+	var x_tag = x + width;
+	var y_tag = y + height;
+	var aSelects = workWin.document.getElementsByTagName ("SELECT");
+		for (var i=0; i<aSelects.length; i++){
+			var a = getObjectLeft(aSelects[i]);
+			var b = getObjectTop(aSelects[i]);
+			var a_tag = a + getObjectWidth(aSelects[i]);
+			var b_tag = b + getObjectHeight(aSelects[i]);
+			if (((a<=x && a>=x_tag) && (b<=y_tag && b>=y)) || ((a_tag<=x_tag && a_tag>=x) && (b_tag<=y_tag && b_tag>=y))){
+				if (aSelects[i].style.getAttribute ("visibility").toUpperCase() != "HIDDEN")
+					aHidSelects [aHidSelects.length] = aSelects[i];
+			}
+		}
+	for (var i=0; i<aHidSelects.length; i++){
+		aHidSelects[i].style.setAttribute ("visibility", "hidden");
+	}
+}
+
+//---------------------------------------------------------------------------------------------------
+//
+//	Functions for update process showing purposes
+//
+//----------------------------------------------------------------------------------------------------
+
+positioningBars = function(){
+	downloadProgressDiv.style.top = (getObjectTop(workWin.document.getElementById('downloadBarUnloaded'))+1) + "px";
+	downloadProgressDiv.style.left = (getObjectLeft(workWin.document.getElementById('downloadBarUnloaded'))+1) + "px";
+
+	scanningProgressDiv.style.top = (getObjectTop(workWin.document.getElementById('scanningBarUnloaded'))+1) + "px";
+	scanningProgressDiv.style.left = (getObjectLeft(workWin.document.getElementById('scanningBarUnloaded'))+1) + "px";
+}
+
+setValue= function(){
+	if (noStatusPageToShow) return true;
+	var argVals = setValue.arguments;
+	var valueToUpdate = workWin.document.getElementById (argVals[0]);
+	var updateData = argVals[1];
+	valueToUpdate.title = updateData;
+	if (updateData.length>25) updateData = updateData.substring (0,25) + '...';
+	setInnerHTML(valueToUpdate, updateData);
+}
+
+setElementText = function(){
+	var argVals = setElementText.arguments;
+	var fileName = argVals[1];
+	setValue('fileName', fileName);
+}
+
+statusBarMsg = function(){
+	var argVals = statusBarMsg.arguments;
+	var msgData = argVals[0];
+	setInnerHTML (workWin.document.getElementById ('statusBar'), msgData);
+}
+
+redirectBack = function(){
+	var argVals = redirectBack.arguments;
+	var scndsToRedirect = argVals[0];
+	if (scndsToRedirect>0){
+		statusBarMsg ('You will be forwarded back in ' + scndsToRedirect + ' seconds...');
+		scndsToRedirect--;
+		var cmdRun = 'redirectBack(' + scndsToRedirect + ')';
+		workWin.setTimeout (cmdRun, 1000);
+	} else {
+		workWin.history.go (-1);
+	}
+}
+
+
+update = function() {
+	try {
+		// Initializing values
+
+		var argVals = update.arguments;
+		var doneSize = argVals[0];
+		var totalSize = argVals[1];
+
+		if (noStatusPageToShow) {
+			if (totalSize != 1){
+				window.status = 'Downloaded... ' + Math.round(doneSize/totalSize*100,0) + '% ' + Math.round(doneSize/1024,2) + ' KB';
+			} else {
+				window.status = 'Downloaded... ' + Math.round(totalSize/1024,2) + ' KB';
+			}
+			return true;
+		}
+
+
+		if (!totalSize || totalSize <= 0)
+			totalSize = 1;
+
+		// Calculations part
+
+		var donePart = doneSize/totalSize;
+		var newTime = new Date();
+		var passedTime = newTime.getTime() - lastTime.getTime();
+		var passedTimeFromStart = newTime.getTime() - beginningTime.getTime();
+		var downloadSpeed = Math.round((doneSize/1024) / (passedTime/1000),2);
+		var leftTimeSeconds = Math.floor((totalSize-doneSize)/1024/downloadSpeed);
+		var leftTimeMinutes = Math.floor(leftTimeSeconds/60);
+		var leftTimeHours = Math.floor(leftTimeMinutes/60);
+		leftTimeSeconds = leftTimeSeconds - leftTimeMinutes*60 - leftTimeHours*60*60;
+		leftTimeMinutes = leftTimeMinutes - leftTimeHours*60*60;
+		if (leftTimeSeconds<0) leftTimeSeconds =0;
+		if (leftTimeMinutes<0) leftTimeMinutes =0;
+		if (leftTimeSeconds<10) leftTimeSeconds = '0' + leftTimeSeconds;
+		if (leftTimeMinutes<10) leftTimeMinutes = '0' + leftTimeMinutes;
+		if (leftTimeHours<10) leftTimeHours = '0' + leftTimeHours;
+		var elapsedHours = Math.floor(passedTimeFromStart/1000/60/60);
+		var elapsedMinutes = Math.floor(passedTimeFromStart/1000/60);
+		var elapsedSeconds = Math.floor(passedTimeFromStart/1000);
+		elapsedSeconds = elapsedSeconds - elapsedMinutes*60 - elapsedHours*60*60;
+		elapsedMinutes = elapsedMinutes - elapsedHours*60*60;
+		if (elapsedSeconds<0) elapsedSeconds =0;
+		if (elapsedMinutes<0) elapsedMinutes =0;
+		if (elapsedSeconds<10) elapsedSeconds = '0' + elapsedSeconds;
+		if (elapsedMinutes<10) elapsedMinutes = '0' + elapsedMinutes;
+		if (elapsedHours<10) elapsedHours = '0' + elapsedHours;
+		var elapsedTime = elapsedHours + ':' + elapsedMinutes + ':' + elapsedSeconds;
+
+
+		if (totalSize != 1){
+			setValue('remainingTime', leftTimeHours + ':' + leftTimeMinutes + ':' + leftTimeSeconds);
+			setValue('fileSize', Math.round(totalSize/1024,2) + ' KB');
+			statusBarMsg ('Downloaded... ' + Math.round(donePart*100,0) + '%');
+		 } else {
+			statusBarMsg ('Downloading... ');
+		 }
+			relocateMainDiv ();
+	        positioningBars	();
+		setValue('downloadSpeed', downloadSpeed + ' KB/s');
+		setValue('downloadedBytes', Math.round(doneSize/1024,2) + ' KB');
+		setValue('elapsedTime', elapsedTime);
+		var lengthUnit = donePart * 233;
+
+		// Displaying final status
+
+		if (totalSize != 1)
+			workWin.document.getElementById ('downloadProgress').style.width = lengthUnit + "px";
+
+	}
+	catch (e){
+		workWin.status = e.description;
+	}
+}
+
+function stopDownload() {
+       	  statusBarMsg ("Download interrupted by user");
+           workWin.document.execCommand('stop');
+  }
+
+
+scanningStatus = function() {
+
+    var argVals = scanningStatus.arguments;
+    var totalSize = 100;
+    //width: 15px;
+	if (!argVals[0]){
+        if (scanningPageStatusProgress == 100) {
+            scanningPageStatusProgress = 25;
+        } else {
+            scanningPageStatusProgress +=25;
+        }
+		var donePart = scanningPageStatusProgress/totalSize;
+		statusBarMsg ('Scanning...');
+		workWin.document.getElementById ('scanningProgress').style.width = "15px";
+		var lengthUnit = donePart * 233;
+		if(!animateScanningLoop){
+			workWin.document.getElementById ('scanningProgress').style.visibility = "visible";
+			startAnimateScanning();
+		}
+		relocateMainDiv ();
+		positioningBars	();
+		//workWin.document.getElementById ('scanningProgress').style.width = lengthUnit + "px";
+	} else {
+		statusBarMsg ('Scanning completed...');
+		clearTimeout(animateScanningLoop);
+		var cancelBtnObj = workWin.document.getElementById('cancelBtn');
+		  if(cancelBtnObj){
+		  	cancelBtnObj.parentNode.innerHTML = "Scanning completed.";
+		  }
+		workWin.document.getElementById ('scanningBarBG').style.backgroundColor = "blue";
+		workWin.document.getElementById ('scanningProgress').style.visibility = "hidden";
+		if (workWin.document.body.vitalSecurityStatusPage != "1") {
+			workWin.document.getElementById("thaliaStatusPageMainDiv").style.display="none";
+			workWin.document.getElementById("thaliaStatusPageDownloadProgressDiv").style.display="none";
+			workWin.document.getElementById("thaliaStatusPageScanningProgressDiv").style.display="none";
+			workWin.document.body.removeChild(workWin.document.getElementById("thaliaStatusPageMainDiv"));
+		workWin.document.body.removeChild(workWin.document.getElementById("thaliaStatusPageDownloadProgressDiv"));
+		workWin.document.body.removeChild(workWin.document.getElementById("thaliaStatusPageScanningProgressDiv"));
+		}
+	}
+}
+var dirRight = true;
+startAnimateScanning = function(){
+	clearTimeout(animateScanningLoop);
+	//debugger;
+	var innerBarWidth = 4;
+	var scanningProgressObj = workWin.document.getElementById ('scanningProgress');
+	var scanningProgressTblObj = workWin.document.getElementById ('scanningProgressTbl');
+	
+	var leftBorderScaningPos = parseInt(leftBorderPos)+30;
+	var rightBorderPos = leftBorderScaningPos + 233;
+	var barCurrentPos = scanningProgressObj.offsetLeft<4 ? 0 : parseInt(scanningProgressObj.style.left);
+	
+	if(dirRight){
+		workWin.document.getElementById ('goingRight').style.display = "";
+		workWin.document.getElementById ('goingLeft').style.display = "none";
+		scanningProgressObj.style.left = (barCurrentPos + innerBarWidth) + "px";
+		if((barCurrentPos + (innerBarWidth*2)) > 218){
+			dirRight = false;
+		}
+	}
+	else{
+		workWin.document.getElementById ('goingRight').style.display = "none";
+		workWin.document.getElementById ('goingLeft').style.display = "";
+		scanningProgressObj.style.left = (barCurrentPos - innerBarWidth) + "px";
+		if((barCurrentPos - (innerBarWidth*2)) < 0){
+			dirRight = true;
+		}
+	}
+	animateScanningLoop = setTimeout('startAnimateScanning()',80);
+}
+
+scan_progress = function () {
+  scanningStatus ();
+}
+
+
+
+finalize = function (){
+  var argVals = finalize.arguments;
+  var doneSize = argVals[0];
+  update (doneSize,doneSize);
+}
+
+completed = function (downloadedFile){
+  blnScanned = true;
+  var cancelBtnObj = workWin.document.getElementById('cancelBtn');
+  if(cancelBtnObj){
+  	cancelBtnObj.parentNode.innerHTML = "Scanning completed.";
+  }
+  if (!noStatusPageToShow) {
+	  workWin.document.getElementById ('downloadProgress').style.width = "233px";
+	  scanningStatus (1);
+ 	  workWin.location = downloadedFile;
+  } else {
+	 window.location = downloadedFile;
+	}
+}
+
+window.onresize = function(){
+	relocateMainDiv();
+}
+
+
+var leftBorderPos = 0;
+relocateMainDiv = function(){
+	x = getWindowWidth();
+	y = getWindowHeight();
+	var progressDiv = workWin.document.getElementById('thaliaStatusPageMainDiv');
+	if(!progressDiv || progressDiv.clientWidth == 0)
+		return;
+	try{
+		var progressDiv = workWin.document.getElementById('thaliaStatusPageMainDiv');	
+		leftBorderPos = (x/2 - (progressDiv.clientWidth/2));
+		progressDiv.style.left = leftBorderPos + "px";
+		progressDiv.style.top = (y/2 - (progressDiv.clientHeight/2)) + "px";
+  	}
+  	catch(e){}	
+	
+}
+
+getWindowHeight = function(){
+	var frameHeight = 760;
+	if(self.innerWidth) {
+		frameHeight = self.innerHeight;
+	} else if (document.documentElement && document.documentElement.clientWidth) {
+		frameHeight = document.documentElement.clientHeight;
+	} else if (document.body) {
+		frameHeight = document.body.clientHeight;
+	}
+	return parseInt(frameHeight);
+}
+var animateScanningLoop = null;
+getWindowWidth = function(){
+	var frameWidth = 1000;
+	if(self.innerWidth) {
+		frameWidth = self.innerWidth;
+	} else if (document.documentElement && document.documentElement.clientWidth) {
+		frameWidth = document.documentElement.clientWidth;
+	} else if (document.body) {
+		frameWidth = document.body.clientWidth;
+	}
+	return parseInt(frameWidth);
+}
+
+showStatus= function(){
+
+	// Initializing global values
+
+	blnScanned = false;
+	noStatusPageToShow = false;
+	x = getWindowWidth();
+	y = getWindowHeight();
+
+	// Detecting the most top window in windows hierarchy
+	try {
+		if (isIE()) {
+			workWin = getMainFrame(window).document.parentWindow.self;
+		} else {
+			workWin = getMainFrame(window);
+			if (workWin.parentNode)
+				workWin = getMainFrame(window.parent); // in Mozilla, iframe
+			else
+				workWin = getMainFrame(window); // in Mozilla, main page
+		}
+	} catch (e) 	{ // if we got here the situation is very bad, no status page will be shown at all... :(
+		noStatusPageToShow = true;
+		return true;
+	}
+
+	if (!workWin) {
+		noStatusPageToShow = true;
+		return true;
+	}
+	workWin.onresize = function(){
+		relocateMainDiv();
+	}
+	// Initializing window size params and making sure sizing doesn't occur
+
+	//workWin.moveTo(0,0);
+	//workWin.resizeTo(x, y);
+	try {
+		workWin.document.body.focus();
+	} catch (e) {}
+
+
+		// Creating a content of main informative div
+
+		var strMainDivInnerHTML  = "<TABLE style='WIDTH: 100%;' cellpadding='0' cellspacing='0'>" + "\n";
+		strMainDivInnerHTML += "<TBODY>" + "\n";
+		strMainDivInnerHTML += "	<TR>" + "\n";
+		strMainDivInnerHTML += "		<TD>" + "\n";
+		strMainDivInnerHTML += "			<table width='100%' cellpadding='0' cellspacing='0'>" + "\n";
+		strMainDivInnerHTML += "			<tr>" + "\n";
+		strMainDivInnerHTML += "			<td>" + "\n";
+		strMainDivInnerHTML += "				<div style='height: 18px; width: 300px; background-color:black;  color:white; font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; vertical-align:text-bottom;' align='left' ><div id='statusBar' style='padding-left:5px '>Initializing download proccess...</div></div>" + "\n";
+		strMainDivInnerHTML += "			</td>" + "\n";
+		strMainDivInnerHTML += "			</tr>" + "\n";
+		strMainDivInnerHTML += "			</table>" + "\n";
+		strMainDivInnerHTML += "		</TD>" + "\n";
+		strMainDivInnerHTML += "	</TR>" + "\n";
+		strMainDivInnerHTML += "	<TR>" + "\n";
+		strMainDivInnerHTML += "		<TD>" + "\n";
+		strMainDivInnerHTML += "				<div style='height: 120px; width: 300px; background-color:#CCCCCC; color:white; font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; vertical-align:text-bottom' align='center'>" + "\n";
+		strMainDivInnerHTML += "					<table width='100%' align='left' style='color:black;'>" + "\n";
+		strMainDivInnerHTML += "					<tr align='left'>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; ' >File name:</td>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; ' id='fileName'>...</td>" + "\n";
+		strMainDivInnerHTML += "					</tr>" + "\n";
+		strMainDivInnerHTML += "					<tr align='left'>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; '>File size:</td>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; ' id='fileSize'>...</td>" + "\n";
+		strMainDivInnerHTML += "					</tr>" + "\n";
+		strMainDivInnerHTML += "					<tr align='left'>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; '>Download speed:</td>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; ' id='downloadSpeed'>...</td>" + "\n";
+		strMainDivInnerHTML += "					</tr>" + "\n";
+		strMainDivInnerHTML += "					<tr align='left'>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; '>Downloaded:</td>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; ' id='downloadedBytes'>...</td>" + "\n";
+		strMainDivInnerHTML += "					</tr>" + "\n";
+		strMainDivInnerHTML += "					<tr align='left'>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; '>Estimated remaining time:</td>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; ' id='remainingTime'>...</td>" + "\n";
+		strMainDivInnerHTML += "					</tr>" + "\n";
+		strMainDivInnerHTML += "					<tr align='left'>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; ' >Elapsed time:</td>" + "\n";
+		strMainDivInnerHTML += "						<td width='50%' style=' font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; ' id='elapsedTime'>...</td>" + "\n";
+		strMainDivInnerHTML += "					</tr>" + "\n";
+		strMainDivInnerHTML += "					</table>" + "\n";
+		strMainDivInnerHTML += "				</div>" + "\n";
+		strMainDivInnerHTML += "		</TD>" + "\n";
+		strMainDivInnerHTML += "	</TR>" + "\n";
+		strMainDivInnerHTML += "		<TR>" + "\n";
+		strMainDivInnerHTML += "			<TD>" + "\n";
+		strMainDivInnerHTML += "				<DIV style='height:20px ' ></DIV>" + "\n";
+		strMainDivInnerHTML += "			</TD>" + "\n";
+		strMainDivInnerHTML += "		</TR>" + "\n";
+		strMainDivInnerHTML += "		<TR>" + "\n";
+		strMainDivInnerHTML += "			<TD>" + "\n";
+		strMainDivInnerHTML += "				<CENTER>" + "\n";
+		strMainDivInnerHTML += "					<TABLE style='width:80%'>" + "\n";
+		strMainDivInnerHTML += "						<TR>" + "\n";
+		strMainDivInnerHTML += "							<TD>" + "\n";
+		strMainDivInnerHTML += "							<div id='downloadBarUnloaded' style='border-width:1px; border-style:solid; border-color:black; height:25px; vertical-align:middle' align='center'>" + "\n";
+		strMainDivInnerHTML += "								<table border='0' cellpadding='0' cellspacing='0'>" + "\n";
+		strMainDivInnerHTML += "								<tr>" + "\n";
+		strMainDivInnerHTML += "									<td>" + "\n";
+		strMainDivInnerHTML += "										<div  style='width: 233px; overflow:hidden; background-color:white; height:25px'><table style='width:233px;' align='center'><tr><td><center><font color='blue' size='1' face='sans-serif'>Downloading...</font></center></td></tr></table></div>" + "\n";
+		strMainDivInnerHTML += "									</td>" + "\n";
+		strMainDivInnerHTML += "								</tr>" + "\n";
+		strMainDivInnerHTML += "								</table>" + "\n";
+		strMainDivInnerHTML += "							</div>" + "\n";
+		strMainDivInnerHTML += "							</TD>" + "\n";
+		strMainDivInnerHTML += "						</TR>" + "\n";
+		strMainDivInnerHTML += "					</TABLE>" + "\n";
+		strMainDivInnerHTML += "				</CENTER>" + "\n";
+		strMainDivInnerHTML += "			</TD>" + "\n";
+		strMainDivInnerHTML += "		</TR>" + "\n";
+		strMainDivInnerHTML += "		<TR>" + "\n";
+		strMainDivInnerHTML += "			<TD>" + "\n";
+		strMainDivInnerHTML += "				<DIV style='height:0px ' ></DIV>" + "\n";
+		strMainDivInnerHTML += "			</TD>" + "\n";
+		strMainDivInnerHTML += "		</TR>" + "\n";
+		strMainDivInnerHTML += "		<TR>" + "\n";
+		strMainDivInnerHTML += "			<TD>" + "\n";
+		strMainDivInnerHTML += "				<CENTER>" + "\n";
+		strMainDivInnerHTML += "					<TABLE style='width:80%'>" + "\n";
+		strMainDivInnerHTML += "						<TR>" + "\n";
+		strMainDivInnerHTML += "							<TD>" + "\n";
+		strMainDivInnerHTML += "							<div id='scanningBarUnloaded' style='border-width:1px; border-style:solid; border-color:black; height:25px; vertical-align:middle' align='center'>" + "\n";
+		strMainDivInnerHTML += "								<table border='0' cellpadding='0' cellspacing='0'>" + "\n";
+		strMainDivInnerHTML += "								<tr>" + "\n";
+		strMainDivInnerHTML += "									<td>" + "\n";
+		strMainDivInnerHTML += "										<div id='scanningBarBG' style='width: 233px; overflow:hidden; background-color:white; height:25px'><table style='width:233px;' align='center'><tr><td><center><font color='blue' size='1' face='sans-serif'>Scanning...</font></center></td></tr></table></div>" + "\n";
+		strMainDivInnerHTML += "									</td>" + "\n";
+		strMainDivInnerHTML += "								</tr>" + "\n";
+		strMainDivInnerHTML += "								</table>" + "\n";
+		strMainDivInnerHTML += "							</div>" + "\n";
+		strMainDivInnerHTML += "							</TD>" + "\n";
+		strMainDivInnerHTML += "						</TR>" + "\n";
+		strMainDivInnerHTML += "					</TABLE>" + "\n";
+		strMainDivInnerHTML += "				</CENTER>" + "\n";
+		strMainDivInnerHTML += "			</TD>" + "\n";
+		strMainDivInnerHTML += "		</TR>" + "\n";
+		strMainDivInnerHTML += "		<TR>" + "\n";
+		strMainDivInnerHTML += "			<TD>" + "\n";
+		strMainDivInnerHTML += "				<CENTER>" + "\n";
+		strMainDivInnerHTML += "					<TABLE style='width:80%'>" + "\n";
+		strMainDivInnerHTML += "						<TR>" + "\n";
+		strMainDivInnerHTML += "							<TD>" + "\n";
+		strMainDivInnerHTML += "							<div style='border-width:0px; border-style:solid; border-color:black; height:25px; vertical-align:middle' align='center'>" + "\n";
+		strMainDivInnerHTML += "								<table border='0' cellpadding='0' cellspacing='0'>" + "\n";
+		strMainDivInnerHTML += "								<tr>" + "\n";
+		strMainDivInnerHTML += "									<td>" + "\n";
+		strMainDivInnerHTML += "										<div align='right'><input id='cancelBtn' type='button' class='formElement' value='Cancel' " + "\n";
+        	strMainDivInnerHTML += "onclick = 'try {document.all[\"statusBar\"].innerHTML = \"Download interrupted by user\"} catch (e) {try {document.getElementById(\"statusBar\").innerHTML = \"Download interrupted by user\"} catch (e) {}};  try {document.execCommand(\"stop\");} catch (e) { try {window.stop()} catch (e) {}}; blnScanned = true;' style='color: #000000;" + "\n";
+		strMainDivInnerHTML += " font-family: Tahoma, Verdana, Arial, sans-serif, Helvetica; background-color: #e0e0e0;  font-size: 12px;  border: 1px solid #000000;  width: 80px;  height: 20px;'/></div>" + "\n";
+		strMainDivInnerHTML += "									</td>" + "\n";
+		strMainDivInnerHTML += "								</tr>" + "\n";
+		strMainDivInnerHTML += "								</table>" + "\n";
+		strMainDivInnerHTML += "							</div>" + "\n";
+		strMainDivInnerHTML += "							</TD>" + "\n";
+		strMainDivInnerHTML += "						</TR>" + "\n";
+		strMainDivInnerHTML += "					</TABLE>" + "\n";
+		strMainDivInnerHTML += "				</CENTER>" + "\n";
+		strMainDivInnerHTML += "			</TD>" + "\n";
+		strMainDivInnerHTML += "		</TR>" + "\n";
+		strMainDivInnerHTML += "		<TR>" + "\n";
+		strMainDivInnerHTML += "			<TD>" + "\n";
+		strMainDivInnerHTML += "				<DIV style='height:25px ' ></DIV>" + "\n";
+		strMainDivInnerHTML += "			</TD>" + "\n";
+		strMainDivInnerHTML += "		</TR>" + "\n";
+		strMainDivInnerHTML += "		<TR>" + "\n";
+		strMainDivInnerHTML += "			<TD>" + "\n";
+		strMainDivInnerHTML += "				<div style='filter:Alpha( style=1,opacity=0, finishOpacity=100,startX=0,finishX=100,startY=100,finishY=100); height: 18px; width: 300px; background-color:black; font-style:italic; color:white; font-family:Tahoma, Verdana, Arial, sans-serif, Helvetica; font-size: 12px; vertical-align:text-bottom' align='right'><div>Powered by <font  style='font-weight:bold '>Trustwave &nbsp;</font></div></div>" + "\n";
+		strMainDivInnerHTML += "			</TD>" + "\n";
+		strMainDivInnerHTML += "		</TR>" + "\n";
+		strMainDivInnerHTML += "	</TBODY>" + "\n";
+		strMainDivInnerHTML += "</TABLE>" + "\n";
+
+		// Creating a content of download progressbar div
+
+			var strDownloadProgressInnerHTML =  "		<table border='0' cellpadding='0' cellspacing='0' style='width:233px;' align='center'>" + "\n";
+			strDownloadProgressInnerHTML += "		<tr>" + "\n";
+			strDownloadProgressInnerHTML += "			<td width='233px;' align='left'>" + "\n";
+			strDownloadProgressInnerHTML += "				<div id='downloadProgress' style='width: 0px; overflow:hidden; background-color:blue; height:25px' align='center'><table style='width:233px;' align='center'><tr><td><center><font color='white' size='1' face='sans-serif'>Downloading...</font></center></td></tr></table></div>" + "\n";
+			strDownloadProgressInnerHTML += "			</td>" + "\n";
+			strDownloadProgressInnerHTML += "		</tr>" + "\n";
+			strDownloadProgressInnerHTML += "		</table>" + "\n";
+
+		// Creating a content of scanning progressbar div
+
+			/*var strScanningProgressInnerHTML =  "		<table border='0' cellpadding='0' cellspacing='0' style='width:233px;' align='center'>" + "\n";
+			strScanningProgressInnerHTML += "		<tr>" + "\n";
+			strScanningProgressInnerHTML += "			<td width='233px;' align='left'>" + "\n";
+			strScanningProgressInnerHTML += "				<div id='scanningProgress' style='width: 0px; overflow:hidden; background-color:blue; height:25px' align='center'><table style='width:233px;' align='center'><tr><td><center><font color='white' size='1' face='sans-serif'>Scanning...</font></center></td></tr></table></div>" + "\n";
+			strScanningProgressInnerHTML += "			</td>" + "\n";
+			strScanningProgressInnerHTML += "		</tr>" + "\n";
+			strScanningProgressInnerHTML += "		</table>" + "\n";*/
+			
+			var strScanningProgressInnerHTML =  "		<table border='0' id='scanningProgressTbl' cellpadding='0' cellspacing='0' style='width:233px;' align='center'>" + "\n";
+			strScanningProgressInnerHTML += "		<tr>" + "\n";
+			strScanningProgressInnerHTML += "			<td width='233px;' align='left'>" + "\n";
+			strScanningProgressInnerHTML += "				<div id='scanningProgress' style='width: 0px; overflow:hidden; height:25px; position: relative;'>" + "\n";
+			strScanningProgressInnerHTML += "					<table style='table-layout: fixed;' cellpadding='0' cellspacing='0'>" + "\n";
+			strScanningProgressInnerHTML += "						<tr>" + "\n";
+			strScanningProgressInnerHTML += "							<td id='goingRight' style='display: none;'>" + "\n";
+			strScanningProgressInnerHTML += "								<table cellpadding='0' cellspacing='0' style='table-layout: fixed;'>" + "\n";
+			strScanningProgressInnerHTML += "									<tr>" + "\n";
+			strScanningProgressInnerHTML += "										<td style='height:24px;width:1px;background-color:#d9d9fe;'></td><td style='width:1px;background-color:#ababfd;'></td><td style='width:1px;background-color:#7c7cfd;'></td><td style='width:1px;background-color:#4d4dfd;'></td><td style='width:1px;background-color:#2727fc;'>&nbsp;</td>" + "\n";
+			strScanningProgressInnerHTML += "									</tr>" + "\n";
+			strScanningProgressInnerHTML += "								</table>" + "\n";
+			strScanningProgressInnerHTML += "							</td>" + "\n";
+			strScanningProgressInnerHTML += "							<td style='width:5px; background-color:#0000ff;'>&nbsp;</td>" + "\n";
+			strScanningProgressInnerHTML += "							<td id='goingLeft' style='display: none;'>" + "\n";
+			strScanningProgressInnerHTML += "								<table cellpadding='0' cellspacing='0' style='table-layout: fixed;'>" + "\n";
+			strScanningProgressInnerHTML += "									<tr>" + "\n";
+			strScanningProgressInnerHTML += "										<td style='height:24px;width:1px;background-color:#2727fc;'>&nbsp;</td><td style='width:1px;background-color:#4d4dfd;'></td><td style='width:1px;background-color:#7c7cfd;'></td><td style='width:1px;background-color:#ababfd;'></td><td style='width:1px;background-color:#d9d9fe;'></td>" + "\n";
+			strScanningProgressInnerHTML += "									</tr>" + "\n";
+			strScanningProgressInnerHTML += "								</table>" + "\n";
+			strScanningProgressInnerHTML += "							</td>" + "\n";
+			strScanningProgressInnerHTML += "						</tr>" + "\n";
+			strScanningProgressInnerHTML += "					</table>" + "\n";
+			strScanningProgressInnerHTML += "				</div>" + "\n";
+			strScanningProgressInnerHTML += "			</td>" + "\n";
+			strScanningProgressInnerHTML += "		</tr>" + "\n";
+			strScanningProgressInnerHTML += "		</table>" + "\n";
+
+		// Creating main div
+
+			mainDiv = workWin.document.createElement ("DIV");
+			mainDiv.id = "thaliaStatusPageMainDiv";
+			mainDiv.style.borderStyle = "solid";
+			mainDiv.style.borderWidth = "1px";
+			mainDiv.style.borderColor = "black";
+			mainDiv.style.width = "300px";
+			mainDiv.style.position = "absolute";
+			mainDiv.style.backgroundColor = "white";
+			mainDiv.style.verticalAlign = "bottom";
+			mainDiv.style.left = (x/2 - 150) + "px";
+			mainDiv.style.top = (y/2 - 200) + "px";
+			leftBorderPos = (x/2 - 150);
+			mainDiv.style.zIndex= 9999;
+			mainDiv.style.filter = "Alpha(Opacity=80, Style=0)";
+
+		//  Creating download progressbar div
+
+			downloadProgressDiv = workWin.document.createElement ("DIV");
+			downloadProgressDiv.id = "thaliaStatusPageDownloadProgressDiv";
+			downloadProgressDiv.style.borderStyle = "solid";
+			downloadProgressDiv.style.borderWidth = "1px";
+			downloadProgressDiv.style.borderColor = "black";
+			downloadProgressDiv.style.width = "233px";
+			downloadProgressDiv.style.height = "25px";
+			downloadProgressDiv.style.verticalAlign = "middle";
+			downloadProgressDiv.style.position = "absolute";
+			downloadProgressDiv.style.zIndex = 10000;
+
+		//  Creating scanning progressbar div
+
+			scanningProgressDiv = workWin.document.createElement ("DIV");
+			scanningProgressDiv.id = "thaliaStatusPageScanningProgressDiv";
+			scanningProgressDiv.style.borderStyle = "solid";
+			scanningProgressDiv.style.borderWidth = "1px";
+			scanningProgressDiv.style.borderColor = "black";
+			scanningProgressDiv.style.width = "233px";
+			scanningProgressDiv.style.height = "25px";
+			scanningProgressDiv.style.verticalAlign = "middle";
+			scanningProgressDiv.style.position = "absolute";
+			scanningProgressDiv.style.zIndex = 10000;
+
+		// 	Filling the divs with their content
+
+ 			setInnerHTML (mainDiv, strMainDivInnerHTML);
+			setInnerHTML (downloadProgressDiv, strDownloadProgressInnerHTML);
+			setInnerHTML (scanningProgressDiv, strScanningProgressInnerHTML);
+
+		//  Appending the divs to HTML page
+
+			workWin.document.body.appendChild(mainDiv);
+			workWin.document.body.appendChild(downloadProgressDiv);
+			workWin.document.body.appendChild(scanningProgressDiv);
+
+		//  Positioning download and status bars on their place
+
+			positioningBars();
+
+		//   Initializing time indicators
+
+		lastTime = new Date();
+		beginningTime = new Date();
+
+}
+-->
+</script>
+
+<body bgcolor="#D7DFEA" vitalSecurityStatusPage="1">
+	<iframe id = "finalDownload" style="display:none; "></iframe>
+
+	<script>
+	<!--
+	showStatus();
+	-->
+</script>
+</body>
+</html>
+<SCRIPT>setElementText("file", "http://archives.jenkins-ci.org/windows-stable-rc/jenkins-1.642.2.zip")</SCRIPT>
+<SCRIPT>update( 5065, 109294932 )</SCRIPT>
+<SCRIPT>update( 114688, 109294932 )</SCRIPT>
+<SCRIPT>update( 229376, 109294932 )</SCRIPT>
+<SCRIPT>update( 335872, 109294932 )</SCRIPT>
+<SCRIPT>update( 442368, 109294932 )</SCRIPT>
+<SCRIPT>update( 548864, 109294932 )</SCRIPT>
+<SCRIPT>update( 647168, 109294932 )</SCRIPT>
+<SCRIPT>update( 745472, 109294932 )</SCRIPT>
+<SCRIPT>update( 843776, 109294932 )</SCRIPT>
+<SCRIPT>update( 942080, 109294932 )</SCRIPT>
+<SCRIPT>update( 1040384, 109294932 )</SCRIPT>
+<SCRIPT>update( 1138688, 109294932 )</SCRIPT>
+<SCRIPT>update( 1236992, 109294932 )</SCRIPT>
+<SCRIPT>update( 1335296, 109294932 )</SCRIPT>
+<SCRIPT>update( 1433600, 109294932 )</SCRIPT>
+<SCRIPT>update( 1523712, 109294932 )</SCRIPT>
+<SCRIPT>update( 1613824, 109294932 )</SCRIPT>
+<SCRIPT>update( 1703936, 109294932 )</SCRIPT>
+<SCRIPT>update( 1794048, 109294932 )</SCRIPT>
+<SCRIPT>update( 1875968, 109294932 )</SCRIPT>
+<SCRIPT>update( 1957888, 109294932 )</SCRIPT>
+<SCRIPT>update( 2039808, 109294932 )</SCRIPT>
+<SCRIPT>update( 2113536, 109294932 )</SCRIPT>
+<SCRIPT>update( 2187264, 109294932 )</SCRIPT>
+<SCRIPT>update( 2260992, 109294932 )</SCRIPT>
+<SCRIPT>update( 2334720, 109294932 )</SCRIPT>
+<SCRIPT>update( 2408448, 109294932 )</SCRIPT>
+<SCRIPT>update( 2482176, 109294932 )</SCRIPT>
+<SCRIPT>update( 2555904, 109294932 )</SCRIPT>
+<SCRIPT>update( 2629632, 109294932 )</SCRIPT>
+<SCRIPT>update( 2703360, 109294932 )</SCRIPT>
+<SCRIPT>update( 2777088, 109294932 )</SCRIPT>
+<SCRIPT>update( 2850816, 109294932 )</SCRIPT>
+<SCRIPT>update( 2924544, 109294932 )</SCRIPT>
+<SCRIPT>update( 2998272, 109294932 )</SCRIPT>
+<SCRIPT>update( 3072000, 109294932 )</SCRIPT>
+<SCRIPT>update( 3145728, 109294932 )</SCRIPT>
+<SCRIPT>update( 3219456, 109294932 )</SCRIPT>
+<SCRIPT>update( 3293184, 109294932 )</SCRIPT>
+<SCRIPT>update( 3366912, 109294932 )</SCRIPT>
+<SCRIPT>update( 3440640, 109294932 )</SCRIPT>
+<SCRIPT>update( 3514368, 109294932 )</SCRIPT>
+<SCRIPT>update( 3588096, 109294932 )</SCRIPT>
+<SCRIPT>update( 3661824, 109294932 )</SCRIPT>
+<SCRIPT>update( 3735552, 109294932 )</SCRIPT>
+<SCRIPT>update( 3809280, 109294932 )</SCRIPT>
+<SCRIPT>update( 3883008, 109294932 )</SCRIPT>
+<SCRIPT>update( 3956736, 109294932 )</SCRIPT>
+<SCRIPT>update( 4030464, 109294932 )</SCRIPT>
+<SCRIPT>update( 4104192, 109294932 )</SCRIPT>
+<SCRIPT>update( 4177920, 109294932 )</SCRIPT>
+<SCRIPT>update( 4251648, 109294932 )</SCRIPT>
+<SCRIPT>update( 4325376, 109294932 )</SCRIPT>
+<SCRIPT>update( 4399104, 109294932 )</SCRIPT>
+<SCRIPT>update( 4481024, 109294932 )</SCRIPT>
+<SCRIPT>update( 4562944, 109294932 )</SCRIPT>
+<SCRIPT>update( 4644864, 109294932 )</SCRIPT>
+<SCRIPT>update( 4726784, 109294932 )</SCRIPT>
+<SCRIPT>update( 4808704, 109294932 )</SCRIPT>
+<SCRIPT>update( 4890624, 109294932 )</SCRIPT>
+<SCRIPT>update( 4972544, 109294932 )</SCRIPT>
+<SCRIPT>update( 5054464, 109294932 )</SCRIPT>
+<SCRIPT>update( 5144576, 109294932 )</SCRIPT>
+<SCRIPT>update( 5234688, 109294932 )</SCRIPT>
+<SCRIPT>update( 5324800, 109294932 )</SCRIPT>
+<SCRIPT>update( 5414912, 109294932 )</SCRIPT>
+<SCRIPT>update( 5505024, 109294932 )</SCRIPT>
+<SCRIPT>update( 5595136, 109294932 )</SCRIPT>
+<SCRIPT>update( 5693440, 109294932 )</SCRIPT>
+<SCRIPT>update( 5791744, 109294932 )</SCRIPT>
+<SCRIPT>update( 5890048, 109294932 )</SCRIPT>
+<SCRIPT>update( 5988352, 109294932 )</SCRIPT>
+<SCRIPT>update( 6086656, 109294932 )</SCRIPT>
+<SCRIPT>update( 6184960, 109294932 )</SCRIPT>
+<SCRIPT>update( 6291456, 109294932 )</SCRIPT>
+<SCRIPT>update( 6397952, 109294932 )</SCRIPT>
+<SCRIPT>update( 6504448, 109294932 )</SCRIPT>
+<SCRIPT>update( 6610944, 109294932 )</SCRIPT>
+<SCRIPT>update( 6717440, 109294932 )</SCRIPT>
+<SCRIPT>update( 6823936, 109294932 )</SCRIPT>
+<SCRIPT>update( 6930432, 109294932 )</SCRIPT>
+<SCRIPT>update( 7036928, 109294932 )</SCRIPT>
+<SCRIPT>update( 7143424, 109294932 )</SCRIPT>
+<SCRIPT>update( 7249920, 109294932 )</SCRIPT>
+<SCRIPT>update( 7356416, 109294932 )</SCRIPT>
+<SCRIPT>update( 7462912, 109294932 )</SCRIPT>
+<SCRIPT>update( 7569408, 109294932 )</SCRIPT>
+<SCRIPT>update( 7667712, 109294932 )</SCRIPT>
+<SCRIPT>update( 7766016, 109294932 )</SCRIPT>
+<SCRIPT>update( 7864320, 109294932 )</SCRIPT>
+<SCRIPT>update( 7962624, 109294932 )</SCRIPT>
+<SCRIPT>update( 8060928, 109294932 )</SCRIPT>
+<SCRIPT>update( 8159232, 109294932 )</SCRIPT>
+<SCRIPT>update( 8257536, 109294932 )</SCRIPT>
+<SCRIPT>update( 8355840, 109294932 )</SCRIPT>
+<SCRIPT>update( 8462336, 109294932 )</SCRIPT>
+<SCRIPT>update( 8568832, 109294932 )</SCRIPT>
+<SCRIPT>update( 8675328, 109294932 )</SCRIPT>
+<SCRIPT>update( 8781824, 109294932 )</SCRIPT>
+<SCRIPT>update( 8888320, 109294932 )</SCRIPT>
+<SCRIPT>update( 8994816, 109294932 )</SCRIPT>
+<SCRIPT>update( 9093120, 109294932 )</SCRIPT>
+<SCRIPT>update( 9191424, 109294932 )</SCRIPT>
+<SCRIPT>update( 9289728, 109294932 )</SCRIPT>
+<SCRIPT>update( 9388032, 109294932 )</SCRIPT>
+<SCRIPT>update( 9494528, 109294932 )</SCRIPT>
+<SCRIPT>update( 9601024, 109294932 )</SCRIPT>
+<SCRIPT>update( 9707520, 109294932 )</SCRIPT>
+<SCRIPT>update( 9814016, 109294932 )</SCRIPT>
+<SCRIPT>update( 9920512, 109294932 )</SCRIPT>
+<SCRIPT>update( 10027008, 109294932 )</SCRIPT>
+<SCRIPT>update( 10133504, 109294932 )</SCRIPT>
+<SCRIPT>update( 10240000, 109294932 )</SCRIPT>
+<SCRIPT>update( 10346496, 109294932 )</SCRIPT>
+<SCRIPT>update( 10452992, 109294932 )</SCRIPT>
+<SCRIPT>update( 10559488, 109294932 )</SCRIPT>
+<SCRIPT>update( 10665984, 109294932 )</SCRIPT>
+<SCRIPT>update( 10772480, 109294932 )</SCRIPT>
+<SCRIPT>update( 10878976, 109294932 )</SCRIPT>
+<SCRIPT>update( 10985472, 109294932 )</SCRIPT>
+<SCRIPT>update( 11091968, 109294932 )</SCRIPT>
+<SCRIPT>update( 11190272, 109294932 )</SCRIPT>
+<SCRIPT>update( 11288576, 109294932 )</SCRIPT>
+<SCRIPT>update( 11386880, 109294932 )</SCRIPT>
+<SCRIPT>update( 11485184, 109294932 )</SCRIPT>
+<SCRIPT>update( 11591680, 109294932 )</SCRIPT>
+<SCRIPT>update( 11698176, 109294932 )</SCRIPT>
+<SCRIPT>update( 11804672, 109294932 )</SCRIPT>
+<SCRIPT>update( 11911168, 109294932 )</SCRIPT>
+<SCRIPT>update( 12017664, 109294932 )</SCRIPT>
+<SCRIPT>update( 12124160, 109294932 )</SCRIPT>
+<SCRIPT>update( 12230656, 109294932 )</SCRIPT>
+<SCRIPT>update( 12337152, 109294932 )</SCRIPT>
+<SCRIPT>update( 12443648, 109294932 )</SCRIPT>
+<SCRIPT>update( 12550144, 109294932 )</SCRIPT>
+<SCRIPT>update( 12656640, 109294932 )</SCRIPT>
+<SCRIPT>update( 12763136, 109294932 )</SCRIPT>
+<SCRIPT>update( 12869632, 109294932 )</SCRIPT>
+<SCRIPT>update( 12976128, 109294932 )</SCRIPT>
+<SCRIPT>update( 13082624, 109294932 )</SCRIPT>
+<SCRIPT>update( 13189120, 109294932 )</SCRIPT>
+<SCRIPT>update( 13295616, 109294932 )</SCRIPT>
+<SCRIPT>update( 13402112, 109294932 )</SCRIPT>
+<SCRIPT>update( 13508608, 109294932 )</SCRIPT>
+<SCRIPT>update( 13606912, 109294932 )</SCRIPT>
+<SCRIPT>update( 13705216, 109294932 )</SCRIPT>
+<SCRIPT>update( 13803520, 109294932 )</SCRIPT>
+<SCRIPT>update( 13901824, 109294932 )</SCRIPT>
+<SCRIPT>update( 13991936, 109294932 )</SCRIPT>
+<SCRIPT>update( 14082048, 109294932 )</SCRIPT>
+<SCRIPT>update( 14172160, 109294932 )</SCRIPT>
+<SCRIPT>update( 14262272, 109294932 )</SCRIPT>
+<SCRIPT>update( 14352384, 109294932 )</SCRIPT>
+<SCRIPT>update( 14442496, 109294932 )</SCRIPT>
+<SCRIPT>update( 14532608, 109294932 )</SCRIPT>
+<SCRIPT>update( 14622720, 109294932 )</SCRIPT>
+<SCRIPT>update( 14712832, 109294932 )</SCRIPT>
+<SCRIPT>update( 14802944, 109294932 )</SCRIPT>
+<SCRIPT>update( 14893056, 109294932 )</SCRIPT>
+<SCRIPT>update( 14983168, 109294932 )</SCRIPT>
+<SCRIPT>update( 15073280, 109294932 )</SCRIPT>
+<SCRIPT>update( 15163392, 109294932 )</SCRIPT>
+<SCRIPT>update( 15253504, 109294932 )</SCRIPT>
+<SCRIPT>update( 15343616, 109294932 )</SCRIPT>
+<SCRIPT>update( 15433728, 109294932 )</SCRIPT>
+<SCRIPT>update( 15523840, 109294932 )</SCRIPT>
+<SCRIPT>update( 15613952, 109294932 )</SCRIPT>
+<SCRIPT>update( 15704064, 109294932 )</SCRIPT>
+<SCRIPT>update( 15802368, 109294932 )</SCRIPT>
+<SCRIPT>update( 15900672, 109294932 )</SCRIPT>
+<SCRIPT>update( 15998976, 109294932 )</SCRIPT>
+<SCRIPT>update( 16097280, 109294932 )</SCRIPT>
+<SCRIPT>update( 16195584, 109294932 )</SCRIPT>
+<SCRIPT>update( 16293888, 109294932 )</SCRIPT>
+<SCRIPT>update( 16392192, 109294932 )</SCRIPT>
+<SCRIPT>update( 16490496, 109294932 )</SCRIPT>
+<SCRIPT>update( 16588800, 109294932 )</SCRIPT>
+<SCRIPT>update( 16687104, 109294932 )</SCRIPT>
+<SCRIPT>update( 16785408, 109294932 )</SCRIPT>
+<SCRIPT>update( 16883712, 109294932 )</SCRIPT>
+<SCRIPT>update( 16982016, 109294932 )</SCRIPT>
+<SCRIPT>update( 17080320, 109294932 )</SCRIPT>
+<SCRIPT>update( 17178624, 109294932 )</SCRIPT>
+<SCRIPT>update( 17276928, 109294932 )</SCRIPT>
+<SCRIPT>update( 17375232, 109294932 )</SCRIPT>
+<SCRIPT>update( 17473536, 109294932 )</SCRIPT>
+<SCRIPT>update( 17571840, 109294932 )</SCRIPT>
+<SCRIPT>update( 17670144, 109294932 )</SCRIPT>
+<SCRIPT>update( 17768448, 109294932 )</SCRIPT>
+<SCRIPT>update( 17866752, 109294932 )</SCRIPT>
+<SCRIPT>update( 17965056, 109294932 )</SCRIPT>
+<SCRIPT>update( 18063360, 109294932 )</SCRIPT>
+<SCRIPT>update( 18161664, 109294932 )</SCRIPT>
+<SCRIPT>update( 18259968, 109294932 )</SCRIPT>
+<SCRIPT>update( 18358272, 109294932 )</SCRIPT>
+<SCRIPT>update( 18456576, 109294932 )</SCRIPT>
+<SCRIPT>update( 18554880, 109294932 )</SCRIPT>
+<SCRIPT>update( 18661376, 109294932 )</SCRIPT>
+<SCRIPT>update( 18767872, 109294932 )</SCRIPT>
+<SCRIPT>update( 18874368, 109294932 )</SCRIPT>
+<SCRIPT>update( 18980864, 109294932 )</SCRIPT>
+<SCRIPT>update( 19087360, 109294932 )</SCRIPT>
+<SCRIPT>update( 19193856, 109294932 )</SCRIPT>
+<SCRIPT>update( 19300352, 109294932 )</SCRIPT>
+<SCRIPT>update( 19406848, 109294932 )</SCRIPT>
+<SCRIPT>update( 19505152, 109294932 )</SCRIPT>
+<SCRIPT>update( 19603456, 109294932 )</SCRIPT>
+<SCRIPT>update( 19701760, 109294932 )</SCRIPT>
+<SCRIPT>update( 19800064, 109294932 )</SCRIPT>
+<SCRIPT>update( 19898368, 109294932 )</SCRIPT>
+<SCRIPT>update( 19996672, 109294932 )</SCRIPT>
+<SCRIPT>update( 20094976, 109294932 )</SCRIPT>
+<SCRIPT>update( 20193280, 109294932 )</SCRIPT>
+<SCRIPT>update( 20291584, 109294932 )</SCRIPT>
+<SCRIPT>update( 20389888, 109294932 )</SCRIPT>
+<SCRIPT>update( 20496384, 109294932 )</SCRIPT>
+<SCRIPT>update( 20602880, 109294932 )</SCRIPT>
+<SCRIPT>update( 20709376, 109294932 )</SCRIPT>
+<SCRIPT>update( 20815872, 109294932 )</SCRIPT>
+<SCRIPT>update( 20922368, 109294932 )</SCRIPT>
+<SCRIPT>update( 21028864, 109294932 )</SCRIPT>
+<SCRIPT>update( 21135360, 109294932 )</SCRIPT>
+<SCRIPT>update( 21241856, 109294932 )</SCRIPT>
+<SCRIPT>update( 21348352, 109294932 )</SCRIPT>
+<SCRIPT>update( 21454848, 109294932 )</SCRIPT>
+<SCRIPT>update( 21561344, 109294932 )</SCRIPT>
+<SCRIPT>update( 21667840, 109294932 )</SCRIPT>
+<SCRIPT>update( 21774336, 109294932 )</SCRIPT>
+<SCRIPT>update( 21880832, 109294932 )</SCRIPT>
+<SCRIPT>update( 21987328, 109294932 )</SCRIPT>
+<SCRIPT>update( 22093824, 109294932 )</SCRIPT>
+<SCRIPT>update( 22192128, 109294932 )</SCRIPT>
+<SCRIPT>update( 22290432, 109294932 )</SCRIPT>
+<SCRIPT>update( 22388736, 109294932 )</SCRIPT>
+<SCRIPT>update( 22495232, 109294932 )</SCRIPT>
+<SCRIPT>update( 22601728, 109294932 )</SCRIPT>
+<SCRIPT>update( 22708224, 109294932 )</SCRIPT>
+<SCRIPT>update( 22814720, 109294932 )</SCRIPT>
+<SCRIPT>update( 22921216, 109294932 )</SCRIPT>
+<SCRIPT>update( 23027712, 109294932 )</SCRIPT>
+<SCRIPT>update( 23134208, 109294932 )</SCRIPT>
+<SCRIPT>update( 23240704, 109294932 )</SCRIPT>
+<SCRIPT>update( 23347200, 109294932 )</SCRIPT>
+<SCRIPT>update( 23453696, 109294932 )</SCRIPT>
+<SCRIPT>update( 23560192, 109294932 )</SCRIPT>
+<SCRIPT>update( 23666688, 109294932 )</SCRIPT>
+<SCRIPT>update( 23773184, 109294932 )</SCRIPT>
+<SCRIPT>update( 23879680, 109294932 )</SCRIPT>
+<SCRIPT>update( 23986176, 109294932 )</SCRIPT>
+<SCRIPT>update( 24092672, 109294932 )</SCRIPT>
+<SCRIPT>update( 24199168, 109294932 )</SCRIPT>
+<SCRIPT>update( 24305664, 109294932 )</SCRIPT>
+<SCRIPT>update( 24412160, 109294932 )</SCRIPT>
+<SCRIPT>update( 24518656, 109294932 )</SCRIPT>
+<SCRIPT>update( 24625152, 109294932 )</SCRIPT>
+<SCRIPT>update( 24731648, 109294932 )</SCRIPT>
+<SCRIPT>update( 24838144, 109294932 )</SCRIPT>
+<SCRIPT>update( 24944640, 109294932 )</SCRIPT>
+<SCRIPT>update( 25051136, 109294932 )</SCRIPT>
+<SCRIPT>update( 25157632, 109294932 )</SCRIPT>
+<SCRIPT>update( 25264128, 109294932 )</SCRIPT>
+<SCRIPT>update( 25370624, 109294932 )</SCRIPT>
+<SCRIPT>update( 25477120, 109294932 )</SCRIPT>
+<SCRIPT>update( 25583616, 109294932 )</SCRIPT>
+<SCRIPT>update( 25690112, 109294932 )</SCRIPT>
+<SCRIPT>update( 25796608, 109294932 )</SCRIPT>
+<SCRIPT>update( 25903104, 109294932 )</SCRIPT>
+<SCRIPT>update( 26009600, 109294932 )</SCRIPT>
+<SCRIPT>update( 26116096, 109294932 )</SCRIPT>
+<SCRIPT>update( 26222592, 109294932 )</SCRIPT>
+<SCRIPT>update( 26329088, 109294932 )</SCRIPT>
+<SCRIPT>update( 26435584, 109294932 )</SCRIPT>
+<SCRIPT>update( 26542080, 109294932 )</SCRIPT>
+<SCRIPT>update( 26640384, 109294932 )</SCRIPT>
+<SCRIPT>update( 26738688, 109294932 )</SCRIPT>
+<SCRIPT>update( 26836992, 109294932 )</SCRIPT>
+<SCRIPT>update( 26935296, 109294932 )</SCRIPT>
+<SCRIPT>update( 27033600, 109294932 )</SCRIPT>
+<SCRIPT>update( 27131904, 109294932 )</SCRIPT>
+<SCRIPT>update( 27230208, 109294932 )</SCRIPT>
+<SCRIPT>update( 27328512, 109294932 )</SCRIPT>
+<SCRIPT>update( 27426816, 109294932 )</SCRIPT>
+<SCRIPT>update( 27533312, 109294932 )</SCRIPT>
+<SCRIPT>update( 27631616, 109294932 )</SCRIPT>
+<SCRIPT>update( 27729920, 109294932 )</SCRIPT>
+<SCRIPT>update( 27828224, 109294932 )</SCRIPT>
+<SCRIPT>update( 27926528, 109294932 )</SCRIPT>
+<SCRIPT>update( 28024832, 109294932 )</SCRIPT>
+<SCRIPT>update( 28123136, 109294932 )</SCRIPT>
+<SCRIPT>update( 28229632, 109294932 )</SCRIPT>
+<SCRIPT>update( 28336128, 109294932 )</SCRIPT>
+<SCRIPT>update( 28442624, 109294932 )</SCRIPT>
+<SCRIPT>update( 28549120, 109294932 )</SCRIPT>
+<SCRIPT>update( 28655616, 109294932 )</SCRIPT>
+<SCRIPT>update( 28753920, 109294932 )</SCRIPT>
+<SCRIPT>update( 28852224, 109294932 )</SCRIPT>
+<SCRIPT>update( 28950528, 109294932 )</SCRIPT>
+<SCRIPT>update( 29048832, 109294932 )</SCRIPT>
+<SCRIPT>update( 29147136, 109294932 )</SCRIPT>
+<SCRIPT>update( 29245440, 109294932 )</SCRIPT>
+<SCRIPT>update( 29351936, 109294932 )</SCRIPT>
+<SCRIPT>update( 29450240, 109294932 )</SCRIPT>
+<SCRIPT>update( 29548544, 109294932 )</SCRIPT>
+<SCRIPT>update( 29646848, 109294932 )</SCRIPT>
+<SCRIPT>update( 29745152, 109294932 )</SCRIPT>
+<SCRIPT>update( 29843456, 109294932 )</SCRIPT>
+<SCRIPT>update( 29941760, 109294932 )</SCRIPT>
+<SCRIPT>update( 30048256, 109294932 )</SCRIPT>
+<SCRIPT>update( 30146560, 109294932 )</SCRIPT>
+<SCRIPT>update( 30244864, 109294932 )</SCRIPT>
+<SCRIPT>update( 30343168, 109294932 )</SCRIPT>
+<SCRIPT>update( 30449664, 109294932 )</SCRIPT>
+<SCRIPT>update( 30556160, 109294932 )</SCRIPT>
+<SCRIPT>update( 30662656, 109294932 )</SCRIPT>
+<SCRIPT>update( 30769152, 109294932 )</SCRIPT>
+<SCRIPT>update( 30867456, 109294932 )</SCRIPT>
+<SCRIPT>update( 30965760, 109294932 )</SCRIPT>
+<SCRIPT>update( 31064064, 109294932 )</SCRIPT>
+<SCRIPT>update( 31162368, 109294932 )</SCRIPT>
+<SCRIPT>update( 31260672, 109294932 )</SCRIPT>
+<SCRIPT>update( 31358976, 109294932 )</SCRIPT>
+<SCRIPT>update( 31457280, 109294932 )</SCRIPT>
+<SCRIPT>update( 31555584, 109294932 )</SCRIPT>
+<SCRIPT>update( 31653888, 109294932 )</SCRIPT>
+<SCRIPT>update( 31752192, 109294932 )</SCRIPT>
+<SCRIPT>update( 31850496, 109294932 )</SCRIPT>
+<SCRIPT>update( 31948800, 109294932 )</SCRIPT>
+<SCRIPT>update( 32047104, 109294932 )</SCRIPT>
+<SCRIPT>update( 32145408, 109294932 )</SCRIPT>
+<SCRIPT>update( 32243712, 109294932 )</SCRIPT>
+<SCRIPT>update( 32342016, 109294932 )</SCRIPT>
+<SCRIPT>update( 32440320, 109294932 )</SCRIPT>
+<SCRIPT>update( 32538624, 109294932 )</SCRIPT>
+<SCRIPT>update( 32636928, 109294932 )</SCRIPT>
+<SCRIPT>update( 32735232, 109294932 )</SCRIPT>
+<SCRIPT>update( 32833536, 109294932 )</SCRIPT>
+<SCRIPT>update( 32931840, 109294932 )</SCRIPT>
+<SCRIPT>update( 33030144, 109294932 )</SCRIPT>
+<SCRIPT>update( 33128448, 109294932 )</SCRIPT>
+<SCRIPT>update( 33226752, 109294932 )</SCRIPT>
+<SCRIPT>update( 33325056, 109294932 )</SCRIPT>
+<SCRIPT>update( 33423360, 109294932 )</SCRIPT>
+<SCRIPT>update( 33521664, 109294932 )</SCRIPT>
+<SCRIPT>update( 33619968, 109294932 )</SCRIPT>
+<SCRIPT>update( 33718272, 109294932 )</SCRIPT>
+<SCRIPT>update( 33816576, 109294932 )</SCRIPT>
+<SCRIPT>update( 33914880, 109294932 )</SCRIPT>
+<SCRIPT>update( 34013184, 109294932 )</SCRIPT>
+<SCRIPT>update( 34111488, 109294932 )</SCRIPT>
+<SCRIPT>update( 34209792, 109294932 )</SCRIPT>
+<SCRIPT>update( 34308096, 109294932 )</SCRIPT>
+<SCRIPT>update( 34406400, 109294932 )</SCRIPT>
+<SCRIPT>update( 34504704, 109294932 )</SCRIPT>
+<SCRIPT>update( 34603008, 109294932 )</SCRIPT>
+<SCRIPT>update( 34701312, 109294932 )</SCRIPT>
+<SCRIPT>update( 34799616, 109294932 )</SCRIPT>
+<SCRIPT>update( 34897920, 109294932 )</SCRIPT>
+<SCRIPT>update( 34996224, 109294932 )</SCRIPT>
+<SCRIPT>update( 35094528, 109294932 )</SCRIPT>
+<SCRIPT>update( 35192832, 109294932 )</SCRIPT>
+<SCRIPT>update( 35291136, 109294932 )</SCRIPT>
+<SCRIPT>update( 35389440, 109294932 )</SCRIPT>
+<SCRIPT>update( 35487744, 109294932 )</SCRIPT>
+<SCRIPT>update( 35586048, 109294932 )</SCRIPT>
+<SCRIPT>update( 35684352, 109294932 )</SCRIPT>
+<SCRIPT>update( 35782656, 109294932 )</SCRIPT>
+<SCRIPT>update( 35880960, 109294932 )</SCRIPT>
+<SCRIPT>update( 35979264, 109294932 )</SCRIPT>
+<SCRIPT>update( 36077568, 109294932 )</SCRIPT>
+<SCRIPT>update( 36175872, 109294932 )</SCRIPT>
+<SCRIPT>update( 36282368, 109294932 )</SCRIPT>
+<SCRIPT>update( 36388864, 109294932 )</SCRIPT>
+<SCRIPT>update( 36495360, 109294932 )</SCRIPT>
+<SCRIPT>update( 36601856, 109294932 )</SCRIPT>
+<SCRIPT>update( 36708352, 109294932 )</SCRIPT>
+<SCRIPT>update( 36814848, 109294932 )</SCRIPT>
+<SCRIPT>update( 36921344, 109294932 )</SCRIPT>
+<SCRIPT>update( 37027840, 109294932 )</SCRIPT>
+<SCRIPT>update( 37126144, 109294932 )</SCRIPT>
+<SCRIPT>update( 37232640, 109294932 )</SCRIPT>
+<SCRIPT>update( 37339136, 109294932 )</SCRIPT>
+<SCRIPT>update( 37445632, 109294932 )</SCRIPT>
+<SCRIPT>update( 37552128, 109294932 )</SCRIPT>
+<SCRIPT>update( 37650432, 109294932 )</SCRIPT>
+<SCRIPT>update( 37748736, 109294932 )</SCRIPT>
+<SCRIPT>update( 37847040, 109294932 )</SCRIPT>
+<SCRIPT>update( 37945344, 109294932 )</SCRIPT>
+<SCRIPT>update( 38043648, 109294932 )</SCRIPT>
+<SCRIPT>update( 38141952, 109294932 )</SCRIPT>
+<SCRIPT>update( 38240256, 109294932 )</SCRIPT>
+<SCRIPT>update( 38338560, 109294932 )</SCRIPT>
+<SCRIPT>update( 38436864, 109294932 )</SCRIPT>
+<SCRIPT>update( 38535168, 109294932 )</SCRIPT>
+<SCRIPT>update( 38633472, 109294932 )</SCRIPT>
+<SCRIPT>update( 38731776, 109294932 )</SCRIPT>
+<SCRIPT>update( 38830080, 109294932 )</SCRIPT>
+<SCRIPT>update( 38928384, 109294932 )</SCRIPT>
+<SCRIPT>update( 39026688, 109294932 )</SCRIPT>
+<SCRIPT>update( 39124992, 109294932 )</SCRIPT>
+<SCRIPT>update( 39223296, 109294932 )</SCRIPT>
+<SCRIPT>update( 39321600, 109294932 )</SCRIPT>
+<SCRIPT>update( 39419904, 109294932 )</SCRIPT>
+<SCRIPT>update( 39518208, 109294932 )</SCRIPT>
+<SCRIPT>update( 39616512, 109294932 )</SCRIPT>
+<SCRIPT>update( 39714816, 109294932 )</SCRIPT>
+<SCRIPT>update( 39813120, 109294932 )</SCRIPT>
+<SCRIPT>update( 39911424, 109294932 )</SCRIPT>
+<SCRIPT>update( 40009728, 109294932 )</SCRIPT>
+<SCRIPT>update( 40108032, 109294932 )</SCRIPT>
+<SCRIPT>update( 40206336, 109294932 )</SCRIPT>
+<SCRIPT>update( 40304640, 109294932 )</SCRIPT>
+<SCRIPT>update( 40402944, 109294932 )</SCRIPT>
+<SCRIPT>update( 40501248, 109294932 )</SCRIPT>
+<SCRIPT>update( 40599552, 109294932 )</SCRIPT>
+<SCRIPT>update( 40697856, 109294932 )</SCRIPT>
+<SCRIPT>update( 40796160, 109294932 )</SCRIPT>
+<SCRIPT>update( 40894464, 109294932 )</SCRIPT>
+<SCRIPT>update( 40992768, 109294932 )</SCRIPT>
+<SCRIPT>update( 41091072, 109294932 )</SCRIPT>
+<SCRIPT>update( 41189376, 109294932 )</SCRIPT>
+<SCRIPT>update( 41287680, 109294932 )</SCRIPT>
+<SCRIPT>update( 41385984, 109294932 )</SCRIPT>
+<SCRIPT>update( 41484288, 109294932 )</SCRIPT>
+<SCRIPT>update( 41582592, 109294932 )</SCRIPT>
+<SCRIPT>update( 41680896, 109294932 )</SCRIPT>
+<SCRIPT>update( 41779200, 109294932 )</SCRIPT>
+<SCRIPT>update( 41869312, 109294932 )</SCRIPT>
+<SCRIPT>update( 41967616, 109294932 )</SCRIPT>
+<SCRIPT>update( 42065920, 109294932 )</SCRIPT>
+<SCRIPT>update( 42164224, 109294932 )</SCRIPT>
+<SCRIPT>update( 42262528, 109294932 )</SCRIPT>
+<SCRIPT>update( 42360832, 109294932 )</SCRIPT>
+<SCRIPT>update( 42459136, 109294932 )</SCRIPT>
+<SCRIPT>update( 42549248, 109294932 )</SCRIPT>
+<SCRIPT>update( 42639360, 109294932 )</SCRIPT>
+<SCRIPT>update( 42737664, 109294932 )</SCRIPT>
+<SCRIPT>update( 42827776, 109294932 )</SCRIPT>
+<SCRIPT>update( 42917888, 109294932 )</SCRIPT>
+<SCRIPT>update( 43008000, 109294932 )</SCRIPT>
+<SCRIPT>update( 43098112, 109294932 )</SCRIPT>
+<SCRIPT>update( 43188224, 109294932 )</SCRIPT>
+<SCRIPT>update( 43278336, 109294932 )</SCRIPT>
+<SCRIPT>update( 43368448, 109294932 )</SCRIPT>
+<SCRIPT>update( 43458560, 109294932 )</SCRIPT>
+<SCRIPT>update( 43548672, 109294932 )</SCRIPT>
+<SCRIPT>update( 43638784, 109294932 )</SCRIPT>
+<SCRIPT>update( 43728896, 109294932 )</SCRIPT>
+<SCRIPT>update( 43819008, 109294932 )</SCRIPT>
+<SCRIPT>update( 43909120, 109294932 )</SCRIPT>
+<SCRIPT>update( 43999232, 109294932 )</SCRIPT>
+<SCRIPT>update( 44089344, 109294932 )</SCRIPT>
+<SCRIPT>update( 44179456, 109294932 )</SCRIPT>
+<SCRIPT>update( 44269568, 109294932 )</SCRIPT>
+<SCRIPT>update( 44359680, 109294932 )</SCRIPT>
+<SCRIPT>update( 44449792, 109294932 )</SCRIPT>
+<SCRIPT>update( 44539904, 109294932 )</SCRIPT>
+<SCRIPT>update( 44630016, 109294932 )</SCRIPT>
+<SCRIPT>update( 44728320, 109294932 )</SCRIPT>
+<SCRIPT>update( 44826624, 109294932 )</SCRIPT>
+<SCRIPT>update( 44924928, 109294932 )</SCRIPT>
+<SCRIPT>update( 45023232, 109294932 )</SCRIPT>
+<SCRIPT>update( 45121536, 109294932 )</SCRIPT>
+<SCRIPT>update( 45219840, 109294932 )</SCRIPT>
+<SCRIPT>update( 45318144, 109294932 )</SCRIPT>
+<SCRIPT>update( 45416448, 109294932 )</SCRIPT>
+<SCRIPT>update( 45514752, 109294932 )</SCRIPT>
+<SCRIPT>update( 45613056, 109294932 )</SCRIPT>
+<SCRIPT>update( 45711360, 109294932 )</SCRIPT>
+<SCRIPT>update( 45809664, 109294932 )</SCRIPT>
+<SCRIPT>update( 45907968, 109294932 )</SCRIPT>
+<SCRIPT>update( 46006272, 109294932 )</SCRIPT>
+<SCRIPT>update( 46104576, 109294932 )</SCRIPT>
+<SCRIPT>update( 46202880, 109294932 )</SCRIPT>
+<SCRIPT>update( 46301184, 109294932 )</SCRIPT>
+<SCRIPT>update( 46399488, 109294932 )</SCRIPT>
+<SCRIPT>update( 46497792, 109294932 )</SCRIPT>
+<SCRIPT>update( 46596096, 109294932 )</SCRIPT>
+<SCRIPT>update( 46694400, 109294932 )</SCRIPT>
+<SCRIPT>update( 46792704, 109294932 )</SCRIPT>
+<SCRIPT>update( 46891008, 109294932 )</SCRIPT>
+<SCRIPT>update( 46989312, 109294932 )</SCRIPT>
+<SCRIPT>update( 47087616, 109294932 )</SCRIPT>
+<SCRIPT>update( 47185920, 109294932 )</SCRIPT>
+<SCRIPT>update( 47284224, 109294932 )</SCRIPT>
+<SCRIPT>update( 47382528, 109294932 )</SCRIPT>
+<SCRIPT>update( 47480832, 109294932 )</SCRIPT>
+<SCRIPT>update( 47579136, 109294932 )</SCRIPT>
+<SCRIPT>update( 47677440, 109294932 )</SCRIPT>
+<SCRIPT>update( 47767552, 109294932 )</SCRIPT>
+<SCRIPT>update( 47865856, 109294932 )</SCRIPT>
+<SCRIPT>update( 47964160, 109294932 )</SCRIPT>
+<SCRIPT>update( 48062464, 109294932 )</SCRIPT>
+<SCRIPT>update( 48160768, 109294932 )</SCRIPT>
+<SCRIPT>update( 48250880, 109294932 )</SCRIPT>
+<SCRIPT>update( 48349184, 109294932 )</SCRIPT>
+<SCRIPT>update( 48447488, 109294932 )</SCRIPT>
+<SCRIPT>update( 48545792, 109294932 )</SCRIPT>
+<SCRIPT>update( 48635904, 109294932 )</SCRIPT>
+<SCRIPT>update( 48726016, 109294932 )</SCRIPT>
+<SCRIPT>update( 48816128, 109294932 )</SCRIPT>
+<SCRIPT>update( 48906240, 109294932 )</SCRIPT>
+<SCRIPT>update( 48996352, 109294932 )</SCRIPT>
+<SCRIPT>update( 49086464, 109294932 )</SCRIPT>
+<SCRIPT>update( 49176576, 109294932 )</SCRIPT>
+<SCRIPT>update( 49266688, 109294932 )</SCRIPT>
+<SCRIPT>update( 49356800, 109294932 )</SCRIPT>
+<SCRIPT>update( 49446912, 109294932 )</SCRIPT>
+<SCRIPT>update( 49537024, 109294932 )</SCRIPT>
+<SCRIPT>update( 49627136, 109294932 )</SCRIPT>
+<SCRIPT>update( 49717248, 109294932 )</SCRIPT>
+<SCRIPT>update( 49807360, 109294932 )</SCRIPT>
+<SCRIPT>update( 49897472, 109294932 )</SCRIPT>
+<SCRIPT>update( 49987584, 109294932 )</SCRIPT>
+<SCRIPT>update( 50069504, 109294932 )</SCRIPT>
+<SCRIPT>update( 50159616, 109294932 )</SCRIPT>
+<SCRIPT>update( 50249728, 109294932 )</SCRIPT>
+<SCRIPT>update( 50339840, 109294932 )</SCRIPT>
+<SCRIPT>update( 50429952, 109294932 )</SCRIPT>
+<SCRIPT>update( 50520064, 109294932 )</SCRIPT>
+<SCRIPT>update( 50601984, 109294932 )</SCRIPT>
+<SCRIPT>update( 50683904, 109294932 )</SCRIPT>
+<SCRIPT>update( 50765824, 109294932 )</SCRIPT>
+<SCRIPT>update( 50847744, 109294932 )</SCRIPT>
+<SCRIPT>update( 50929664, 109294932 )</SCRIPT>
+<SCRIPT>update( 51011584, 109294932 )</SCRIPT>
+<SCRIPT>update( 51093504, 109294932 )</SCRIPT>
+<SCRIPT>update( 51175424, 109294932 )</SCRIPT>
+<SCRIPT>update( 51257344, 109294932 )</SCRIPT>
+<SCRIPT>update( 51339264, 109294932 )</SCRIPT>
+<SCRIPT>update( 51421184, 109294932 )</SCRIPT>
+<SCRIPT>update( 51503104, 109294932 )</SCRIPT>
+<SCRIPT>update( 51585024, 109294932 )</SCRIPT>
+<SCRIPT>update( 51666944, 109294932 )</SCRIPT>
+<SCRIPT>update( 51748864, 109294932 )</SCRIPT>
+<SCRIPT>update( 51838976, 109294932 )</SCRIPT>
+<SCRIPT>update( 51929088, 109294932 )</SCRIPT>
+<SCRIPT>update( 52019200, 109294932 )</SCRIPT>
+<SCRIPT>update( 52109312, 109294932 )</SCRIPT>
+<SCRIPT>update( 52199424, 109294932 )</SCRIPT>
+<SCRIPT>update( 52289536, 109294932 )</SCRIPT>
+<SCRIPT>update( 52379648, 109294932 )</SCRIPT>
+<SCRIPT>update( 52469760, 109294932 )</SCRIPT>
+<SCRIPT>update( 52551680, 109294932 )</SCRIPT>
+<SCRIPT>update( 52641792, 109294932 )</SCRIPT>
+<SCRIPT>update( 52731904, 109294932 )</SCRIPT>
+<SCRIPT>update( 52822016, 109294932 )</SCRIPT>
+<SCRIPT>update( 52912128, 109294932 )</SCRIPT>
+<SCRIPT>update( 53002240, 109294932 )</SCRIPT>
+<SCRIPT>update( 53092352, 109294932 )</SCRIPT>
+<SCRIPT>update( 53182464, 109294932 )</SCRIPT>
+<SCRIPT>update( 53272576, 109294932 )</SCRIPT>
+<SCRIPT>update( 53370880, 109294932 )</SCRIPT>
+<SCRIPT>update( 53469184, 109294932 )</SCRIPT>
+<SCRIPT>update( 53567488, 109294932 )</SCRIPT>
+<SCRIPT>update( 53665792, 109294932 )</SCRIPT>
+<SCRIPT>update( 53764096, 109294932 )</SCRIPT>
+<SCRIPT>update( 53862400, 109294932 )</SCRIPT>
+<SCRIPT>update( 53960704, 109294932 )</SCRIPT>
+<SCRIPT>update( 54059008, 109294932 )</SCRIPT>
+<SCRIPT>update( 54157312, 109294932 )</SCRIPT>
+<SCRIPT>update( 54255616, 109294932 )</SCRIPT>
+<SCRIPT>update( 54353920, 109294932 )</SCRIPT>
+<SCRIPT>update( 54452224, 109294932 )</SCRIPT>
+<SCRIPT>update( 54558720, 109294932 )</SCRIPT>
+<SCRIPT>update( 54665216, 109294932 )</SCRIPT>
+<SCRIPT>update( 54771712, 109294932 )</SCRIPT>
+<SCRIPT>update( 54878208, 109294932 )</SCRIPT>
+<SCRIPT>update( 54984704, 109294932 )</SCRIPT>
+<SCRIPT>update( 55091200, 109294932 )</SCRIPT>
+<SCRIPT>update( 55197696, 109294932 )</SCRIPT>
+<SCRIPT>update( 55304192, 109294932 )</SCRIPT>
+<SCRIPT>update( 55410688, 109294932 )</SCRIPT>
+<SCRIPT>update( 55517184, 109294932 )</SCRIPT>
+<SCRIPT>update( 55623680, 109294932 )</SCRIPT>
+<SCRIPT>update( 55730176, 109294932 )</SCRIPT>
+<SCRIPT>update( 55844864, 109294932 )</SCRIPT>
+<SCRIPT>update( 55959552, 109294932 )</SCRIPT>
+<SCRIPT>update( 56074240, 109294932 )</SCRIPT>
+<SCRIPT>update( 56188928, 109294932 )</SCRIPT>
+<SCRIPT>update( 56303616, 109294932 )</SCRIPT>
+<SCRIPT>update( 56418304, 109294932 )</SCRIPT>
+<SCRIPT>update( 56532992, 109294932 )</SCRIPT>
+<SCRIPT>update( 56647680, 109294932 )</SCRIPT>
+<SCRIPT>update( 56762368, 109294932 )</SCRIPT>
+<SCRIPT>update( 56877056, 109294932 )</SCRIPT>
+<SCRIPT>update( 56991744, 109294932 )</SCRIPT>
+<SCRIPT>update( 57106432, 109294932 )</SCRIPT>
+<SCRIPT>update( 57221120, 109294932 )</SCRIPT>
+<SCRIPT>update( 57335808, 109294932 )</SCRIPT>
+<SCRIPT>update( 57450496, 109294932 )</SCRIPT>
+<SCRIPT>update( 57565184, 109294932 )</SCRIPT>
+<SCRIPT>update( 57679872, 109294932 )</SCRIPT>
+<SCRIPT>update( 57794560, 109294932 )</SCRIPT>
+<SCRIPT>update( 57909248, 109294932 )</SCRIPT>
+<SCRIPT>update( 58023936, 109294932 )</SCRIPT>
+<SCRIPT>update( 58138624, 109294932 )</SCRIPT>
+<SCRIPT>update( 58253312, 109294932 )</SCRIPT>
+<SCRIPT>update( 58368000, 109294932 )</SCRIPT>
+<SCRIPT>update( 58482688, 109294932 )</SCRIPT>
+<SCRIPT>update( 58597376, 109294932 )</SCRIPT>
+<SCRIPT>update( 58712064, 109294932 )</SCRIPT>
+<SCRIPT>update( 58826752, 109294932 )</SCRIPT>
+<SCRIPT>update( 58941440, 109294932 )</SCRIPT>
+<SCRIPT>update( 59056128, 109294932 )</SCRIPT>
+<SCRIPT>update( 59170816, 109294932 )</SCRIPT>
+<SCRIPT>update( 59285504, 109294932 )</SCRIPT>
+<SCRIPT>update( 59400192, 109294932 )</SCRIPT>
+<SCRIPT>update( 59514880, 109294932 )</SCRIPT>
+<SCRIPT>update( 59629568, 109294932 )</SCRIPT>
+<SCRIPT>update( 59744256, 109294932 )</SCRIPT>
+<SCRIPT>update( 59858944, 109294932 )</SCRIPT>
+<SCRIPT>update( 59973632, 109294932 )</SCRIPT>
+<SCRIPT>update( 60088320, 109294932 )</SCRIPT>
+<SCRIPT>update( 60203008, 109294932 )</SCRIPT>
+<SCRIPT>update( 60317696, 109294932 )</SCRIPT>
+<SCRIPT>update( 60432384, 109294932 )</SCRIPT>
+<SCRIPT>update( 60547072, 109294932 )</SCRIPT>
+<SCRIPT>update( 60661760, 109294932 )</SCRIPT>
+<SCRIPT>update( 60776448, 109294932 )</SCRIPT>
+<SCRIPT>update( 60891136, 109294932 )</SCRIPT>
+<SCRIPT>update( 61005824, 109294932 )</SCRIPT>
+<SCRIPT>update( 61120512, 109294932 )</SCRIPT>
+<SCRIPT>update( 61235200, 109294932 )</SCRIPT>
+<SCRIPT>update( 61349888, 109294932 )</SCRIPT>
+<SCRIPT>update( 61464576, 109294932 )</SCRIPT>
+<SCRIPT>update( 61579264, 109294932 )</SCRIPT>
+<SCRIPT>update( 61693952, 109294932 )</SCRIPT>
+<SCRIPT>update( 61808640, 109294932 )</SCRIPT>
+<SCRIPT>update( 61923328, 109294932 )</SCRIPT>
+<SCRIPT>update( 62038016, 109294932 )</SCRIPT>
+<SCRIPT>update( 62152704, 109294932 )</SCRIPT>
+<SCRIPT>update( 62267392, 109294932 )</SCRIPT>
+<SCRIPT>update( 62382080, 109294932 )</SCRIPT>
+<SCRIPT>update( 62496768, 109294932 )</SCRIPT>
+<SCRIPT>update( 62611456, 109294932 )</SCRIPT>
+<SCRIPT>update( 62726144, 109294932 )</SCRIPT>
+<SCRIPT>update( 62840832, 109294932 )</SCRIPT>
+<SCRIPT>update( 62955520, 109294932 )</SCRIPT>
+<SCRIPT>update( 63070208, 109294932 )</SCRIPT>
+<SCRIPT>update( 63184896, 109294932 )</SCRIPT>
+<SCRIPT>update( 63299584, 109294932 )</SCRIPT>
+<SCRIPT>update( 63414272, 109294932 )</SCRIPT>
+<SCRIPT>update( 63528960, 109294932 )</SCRIPT>
+<SCRIPT>update( 63643648, 109294932 )</SCRIPT>
+<SCRIPT>update( 63758336, 109294932 )</SCRIPT>
+<SCRIPT>update( 63873024, 109294932 )</SCRIPT>
+<SCRIPT>update( 63987712, 109294932 )</SCRIPT>
+<SCRIPT>update( 64102400, 109294932 )</SCRIPT>
+<SCRIPT>update( 64217088, 109294932 )</SCRIPT>
+<SCRIPT>update( 64331776, 109294932 )</SCRIPT>
+<SCRIPT>update( 64446464, 109294932 )</SCRIPT>
+<SCRIPT>update( 64561152, 109294932 )</SCRIPT>
+<SCRIPT>update( 64675840, 109294932 )</SCRIPT>
+<SCRIPT>update( 64790528, 109294932 )</SCRIPT>
+<SCRIPT>update( 64905216, 109294932 )</SCRIPT>
+<SCRIPT>update( 65019904, 109294932 )</SCRIPT>
+<SCRIPT>update( 65134592, 109294932 )</SCRIPT>
+<SCRIPT>update( 65249280, 109294932 )</SCRIPT>
+<SCRIPT>update( 65363968, 109294932 )</SCRIPT>
+<SCRIPT>update( 65478656, 109294932 )</SCRIPT>
+<SCRIPT>update( 65593344, 109294932 )</SCRIPT>
+<SCRIPT>update( 65708032, 109294932 )</SCRIPT>
+<SCRIPT>update( 65822720, 109294932 )</SCRIPT>
+<SCRIPT>update( 65937408, 109294932 )</SCRIPT>
+<SCRIPT>update( 66052096, 109294932 )</SCRIPT>
+<SCRIPT>update( 66166784, 109294932 )</SCRIPT>
+<SCRIPT>update( 66281472, 109294932 )</SCRIPT>
+<SCRIPT>update( 66396160, 109294932 )</SCRIPT>
+<SCRIPT>update( 66510848, 109294932 )</SCRIPT>
+<SCRIPT>update( 66625536, 109294932 )</SCRIPT>
+<SCRIPT>update( 66740224, 109294932 )</SCRIPT>
+<SCRIPT>update( 66854912, 109294932 )</SCRIPT>
+<SCRIPT>update( 66969600, 109294932 )</SCRIPT>
+<SCRIPT>update( 67084288, 109294932 )</SCRIPT>
+<SCRIPT>update( 67198976, 109294932 )</SCRIPT>
+<SCRIPT>update( 67313664, 109294932 )</SCRIPT>
+<SCRIPT>update( 67428352, 109294932 )</SCRIPT>
+<SCRIPT>update( 67543040, 109294932 )</SCRIPT>
+<SCRIPT>update( 67657728, 109294932 )</SCRIPT>
+<SCRIPT>update( 67772416, 109294932 )</SCRIPT>
+<SCRIPT>update( 67887104, 109294932 )</SCRIPT>
+<SCRIPT>update( 68001792, 109294932 )</SCRIPT>
+<SCRIPT>update( 68116480, 109294932 )</SCRIPT>
+<SCRIPT>update( 68231168, 109294932 )</SCRIPT>
+<SCRIPT>update( 68345856, 109294932 )</SCRIPT>
+<SCRIPT>update( 68460544, 109294932 )</SCRIPT>
+<SCRIPT>update( 68575232, 109294932 )</SCRIPT>
+<SCRIPT>update( 68689920, 109294932 )</SCRIPT>
+<SCRIPT>update( 68804608, 109294932 )</SCRIPT>
+<SCRIPT>update( 68919296, 109294932 )</SCRIPT>
+<SCRIPT>update( 69033984, 109294932 )</SCRIPT>
+<SCRIPT>update( 69148672, 109294932 )</SCRIPT>
+<SCRIPT>update( 69263360, 109294932 )</SCRIPT>
+<SCRIPT>update( 69378048, 109294932 )</SCRIPT>
+<SCRIPT>update( 69492736, 109294932 )</SCRIPT>
+<SCRIPT>update( 69607424, 109294932 )</SCRIPT>
+<SCRIPT>update( 69722112, 109294932 )</SCRIPT>
+<SCRIPT>update( 69832652, 109294932 )</SCRIPT>
+<SCRIPT>update( 69951488, 109294932 )</SCRIPT>
+<SCRIPT>update( 70066176, 109294932 )</SCRIPT>
+<SCRIPT>update( 70180864, 109294932 )</SCRIPT>
+<SCRIPT>update( 70295552, 109294932 )</SCRIPT>
+<SCRIPT>update( 70410240, 109294932 )</SCRIPT>
+<SCRIPT>update( 70524928, 109294932 )</SCRIPT>
+<SCRIPT>update( 70631424, 109294932 )</SCRIPT>
+<SCRIPT>update( 70737920, 109294932 )</SCRIPT>
+<SCRIPT>update( 70844416, 109294932 )</SCRIPT>
+<SCRIPT>update( 70950912, 109294932 )</SCRIPT>
+<SCRIPT>update( 71057408, 109294932 )</SCRIPT>
+<SCRIPT>update( 71163904, 109294932 )</SCRIPT>
+<SCRIPT>update( 71270400, 109294932 )</SCRIPT>
+<SCRIPT>update( 71368704, 109294932 )</SCRIPT>
+<SCRIPT>update( 71467008, 109294932 )</SCRIPT>
+<SCRIPT>update( 71565312, 109294932 )</SCRIPT>
+<SCRIPT>update( 71671808, 109294932 )</SCRIPT>
+<SCRIPT>update( 71778304, 109294932 )</SCRIPT>
+<SCRIPT>update( 71884800, 109294932 )</SCRIPT>
+<SCRIPT>update( 71991296, 109294932 )</SCRIPT>
+<SCRIPT>update( 72097792, 109294932 )</SCRIPT>
+<SCRIPT>update( 72204288, 109294932 )</SCRIPT>
+<SCRIPT>update( 72310784, 109294932 )</SCRIPT>
+<SCRIPT>update( 72417280, 109294932 )</SCRIPT>
+<SCRIPT>update( 72523776, 109294932 )</SCRIPT>
+<SCRIPT>update( 72630272, 109294932 )</SCRIPT>
+<SCRIPT>update( 72736768, 109294932 )</SCRIPT>
+<SCRIPT>update( 72843264, 109294932 )</SCRIPT>
+<SCRIPT>update( 72949760, 109294932 )</SCRIPT>
+<SCRIPT>update( 73056256, 109294932 )</SCRIPT>
+<SCRIPT>update( 73162752, 109294932 )</SCRIPT>
+<SCRIPT>update( 73269248, 109294932 )</SCRIPT>
+<SCRIPT>update( 73375744, 109294932 )</SCRIPT>
+<SCRIPT>update( 73482240, 109294932 )</SCRIPT>
+<SCRIPT>update( 73588736, 109294932 )</SCRIPT>
+<SCRIPT>update( 73695232, 109294932 )</SCRIPT>
+<SCRIPT>update( 73801728, 109294932 )</SCRIPT>
+<SCRIPT>update( 73908224, 109294932 )</SCRIPT>
+<SCRIPT>update( 74014720, 109294932 )</SCRIPT>
+<SCRIPT>update( 74121216, 109294932 )</SCRIPT>
+<SCRIPT>update( 74227712, 109294932 )</SCRIPT>
+<SCRIPT>update( 74334208, 109294932 )</SCRIPT>
+<SCRIPT>update( 74440704, 109294932 )</SCRIPT>
+<SCRIPT>update( 74547200, 109294932 )</SCRIPT>
+<SCRIPT>update( 74653696, 109294932 )</SCRIPT>
+<SCRIPT>update( 74760192, 109294932 )</SCRIPT>
+<SCRIPT>update( 74866688, 109294932 )</SCRIPT>
+<SCRIPT>update( 74973184, 109294932 )</SCRIPT>
+<SCRIPT>update( 75079680, 109294932 )</SCRIPT>
+<SCRIPT>update( 75186176, 109294932 )</SCRIPT>
+<SCRIPT>update( 75292672, 109294932 )</SCRIPT>
+<SCRIPT>update( 75399168, 109294932 )</SCRIPT>
+<SCRIPT>update( 75505664, 109294932 )</SCRIPT>
+<SCRIPT>update( 75612160, 109294932 )</SCRIPT>
+<SCRIPT>update( 75718656, 109294932 )</SCRIPT>
+<SCRIPT>update( 75825152, 109294932 )</SCRIPT>
+<SCRIPT>update( 75931648, 109294932 )</SCRIPT>
+<SCRIPT>update( 76038144, 109294932 )</SCRIPT>
+<SCRIPT>update( 76144640, 109294932 )</SCRIPT>
+<SCRIPT>update( 76251136, 109294932 )</SCRIPT>
+<SCRIPT>update( 76357632, 109294932 )</SCRIPT>
+<SCRIPT>update( 76464128, 109294932 )</SCRIPT>
+<SCRIPT>update( 76570624, 109294932 )</SCRIPT>
+<SCRIPT>update( 76677120, 109294932 )</SCRIPT>
+<SCRIPT>update( 76783616, 109294932 )</SCRIPT>
+<SCRIPT>update( 76890112, 109294932 )</SCRIPT>
+<SCRIPT>update( 76996608, 109294932 )</SCRIPT>
+<SCRIPT>update( 77103104, 109294932 )</SCRIPT>
+<SCRIPT>update( 77209600, 109294932 )</SCRIPT>
+<SCRIPT>update( 77316096, 109294932 )</SCRIPT>
+<SCRIPT>update( 77422592, 109294932 )</SCRIPT>
+<SCRIPT>update( 77529088, 109294932 )</SCRIPT>
+<SCRIPT>update( 77635584, 109294932 )</SCRIPT>
+<SCRIPT>update( 77742080, 109294932 )</SCRIPT>
+<SCRIPT>update( 77848576, 109294932 )</SCRIPT>
+<SCRIPT>update( 77955072, 109294932 )</SCRIPT>
+<SCRIPT>update( 78061568, 109294932 )</SCRIPT>
+<SCRIPT>update( 78168064, 109294932 )</SCRIPT>
+<SCRIPT>update( 78274560, 109294932 )</SCRIPT>
+<SCRIPT>update( 78381056, 109294932 )</SCRIPT>
+<SCRIPT>update( 78495744, 109294932 )</SCRIPT>
+<SCRIPT>update( 78610432, 109294932 )</SCRIPT>
+<SCRIPT>update( 78725120, 109294932 )</SCRIPT>
+<SCRIPT>update( 78839808, 109294932 )</SCRIPT>
+<SCRIPT>update( 78954496, 109294932 )</SCRIPT>
+<SCRIPT>update( 79069184, 109294932 )</SCRIPT>
+<SCRIPT>update( 79183872, 109294932 )</SCRIPT>
+<SCRIPT>update( 79298560, 109294932 )</SCRIPT>
+<SCRIPT>update( 79413248, 109294932 )</SCRIPT>
+<SCRIPT>update( 79527936, 109294932 )</SCRIPT>
+<SCRIPT>update( 79642624, 109294932 )</SCRIPT>
+<SCRIPT>update( 79757312, 109294932 )</SCRIPT>
+<SCRIPT>update( 79872000, 109294932 )</SCRIPT>
+<SCRIPT>update( 79986688, 109294932 )</SCRIPT>
+<SCRIPT>update( 80101376, 109294932 )</SCRIPT>
+<SCRIPT>update( 80216064, 109294932 )</SCRIPT>
+<SCRIPT>update( 80330752, 109294932 )</SCRIPT>
+<SCRIPT>update( 80445440, 109294932 )</SCRIPT>
+<SCRIPT>update( 80560128, 109294932 )</SCRIPT>
+<SCRIPT>update( 80674816, 109294932 )</SCRIPT>
+<SCRIPT>update( 80789504, 109294932 )</SCRIPT>
+<SCRIPT>update( 80904192, 109294932 )</SCRIPT>
+<SCRIPT>update( 81018880, 109294932 )</SCRIPT>
+<SCRIPT>update( 81133568, 109294932 )</SCRIPT>
+<SCRIPT>update( 81248256, 109294932 )</SCRIPT>
+<SCRIPT>update( 81362944, 109294932 )</SCRIPT>
+<SCRIPT>update( 81477632, 109294932 )</SCRIPT>
+<SCRIPT>update( 81592320, 109294932 )</SCRIPT>
+<SCRIPT>update( 81707008, 109294932 )</SCRIPT>
+<SCRIPT>update( 81821696, 109294932 )</SCRIPT>
+<SCRIPT>update( 81936384, 109294932 )</SCRIPT>
+<SCRIPT>update( 82051072, 109294932 )</SCRIPT>
+<SCRIPT>update( 82165760, 109294932 )</SCRIPT>
+<SCRIPT>update( 82280448, 109294932 )</SCRIPT>
+<SCRIPT>update( 82395136, 109294932 )</SCRIPT>
+<SCRIPT>update( 82509824, 109294932 )</SCRIPT>
+<SCRIPT>update( 82624512, 109294932 )</SCRIPT>
+<SCRIPT>update( 82739200, 109294932 )</SCRIPT>
+<SCRIPT>update( 82853888, 109294932 )</SCRIPT>
+<SCRIPT>update( 82968576, 109294932 )</SCRIPT>
+<SCRIPT>update( 83083264, 109294932 )</SCRIPT>
+<SCRIPT>update( 83197952, 109294932 )</SCRIPT>
+<SCRIPT>update( 83312640, 109294932 )</SCRIPT>
+<SCRIPT>update( 83427328, 109294932 )</SCRIPT>
+<SCRIPT>update( 83542016, 109294932 )</SCRIPT>
+<SCRIPT>update( 83656704, 109294932 )</SCRIPT>
+<SCRIPT>update( 83771392, 109294932 )</SCRIPT>
+<SCRIPT>update( 83886080, 109294932 )</SCRIPT>
+<SCRIPT>update( 84000768, 109294932 )</SCRIPT>
+<SCRIPT>update( 84115456, 109294932 )</SCRIPT>
+<SCRIPT>update( 84230144, 109294932 )</SCRIPT>
+<SCRIPT>update( 84344832, 109294932 )</SCRIPT>
+<SCRIPT>update( 84459520, 109294932 )</SCRIPT>
+<SCRIPT>update( 84574208, 109294932 )</SCRIPT>
+<SCRIPT>update( 84680704, 109294932 )</SCRIPT>
+<SCRIPT>update( 84787200, 109294932 )</SCRIPT>
+<SCRIPT>update( 84893696, 109294932 )</SCRIPT>
+<SCRIPT>update( 85000192, 109294932 )</SCRIPT>
+<SCRIPT>update( 85106688, 109294932 )</SCRIPT>
+<SCRIPT>update( 85213184, 109294932 )</SCRIPT>
+<SCRIPT>update( 85319680, 109294932 )</SCRIPT>
+<SCRIPT>update( 85426176, 109294932 )</SCRIPT>
+<SCRIPT>update( 85532672, 109294932 )</SCRIPT>
+<SCRIPT>update( 85639168, 109294932 )</SCRIPT>
+<SCRIPT>update( 85745664, 109294932 )</SCRIPT>
+<SCRIPT>update( 85852160, 109294932 )</SCRIPT>
+<SCRIPT>update( 85958656, 109294932 )</SCRIPT>
+<SCRIPT>update( 86065152, 109294932 )</SCRIPT>
+<SCRIPT>update( 86171648, 109294932 )</SCRIPT>
+<SCRIPT>update( 86278144, 109294932 )</SCRIPT>
+<SCRIPT>update( 86384640, 109294932 )</SCRIPT>
+<SCRIPT>update( 86491136, 109294932 )</SCRIPT>
+<SCRIPT>update( 86597632, 109294932 )</SCRIPT>
+<SCRIPT>update( 86704128, 109294932 )</SCRIPT>
+<SCRIPT>update( 86810624, 109294932 )</SCRIPT>
+<SCRIPT>update( 86917120, 109294932 )</SCRIPT>
+<SCRIPT>update( 87023616, 109294932 )</SCRIPT>
+<SCRIPT>update( 87130112, 109294932 )</SCRIPT>
+<SCRIPT>update( 87236608, 109294932 )</SCRIPT>
+<SCRIPT>update( 87343104, 109294932 )</SCRIPT>
+<SCRIPT>update( 87449600, 109294932 )</SCRIPT>
+<SCRIPT>update( 87556096, 109294932 )</SCRIPT>
+<SCRIPT>update( 87662592, 109294932 )</SCRIPT>
+<SCRIPT>update( 87769088, 109294932 )</SCRIPT>
+<SCRIPT>update( 87875584, 109294932 )</SCRIPT>
+<SCRIPT>update( 87982080, 109294932 )</SCRIPT>
+<SCRIPT>update( 88088576, 109294932 )</SCRIPT>
+<SCRIPT>update( 88195072, 109294932 )</SCRIPT>
+<SCRIPT>update( 88301568, 109294932 )</SCRIPT>
+<SCRIPT>update( 88408064, 109294932 )</SCRIPT>
+<SCRIPT>update( 88514560, 109294932 )</SCRIPT>
+<SCRIPT>update( 88621056, 109294932 )</SCRIPT>
+<SCRIPT>update( 88727552, 109294932 )</SCRIPT>
+<SCRIPT>update( 88834048, 109294932 )</SCRIPT>
+<SCRIPT>update( 88940544, 109294932 )</SCRIPT>
+<SCRIPT>update( 89047040, 109294932 )</SCRIPT>
+<SCRIPT>update( 89153536, 109294932 )</SCRIPT>
+<SCRIPT>update( 89260032, 109294932 )</SCRIPT>
+<SCRIPT>update( 89366528, 109294932 )</SCRIPT>
+<SCRIPT>update( 89473024, 109294932 )</SCRIPT>
+<SCRIPT>update( 89579520, 109294932 )</SCRIPT>
+<SCRIPT>update( 89686016, 109294932 )</SCRIPT>
+<SCRIPT>update( 89792512, 109294932 )</SCRIPT>
+<SCRIPT>update( 89899008, 109294932 )</SCRIPT>
+<SCRIPT>update( 90005504, 109294932 )</SCRIPT>
+<SCRIPT>update( 90112000, 109294932 )</SCRIPT>
+<SCRIPT>update( 90218496, 109294932 )</SCRIPT>
+<SCRIPT>update( 90324992, 109294932 )</SCRIPT>
+<SCRIPT>update( 90431488, 109294932 )</SCRIPT>
+<SCRIPT>update( 90537984, 109294932 )</SCRIPT>
+<SCRIPT>update( 90644480, 109294932 )</SCRIPT>
+<SCRIPT>update( 90750976, 109294932 )</SCRIPT>
+<SCRIPT>update( 90857472, 109294932 )</SCRIPT>
+<SCRIPT>update( 90963968, 109294932 )</SCRIPT>
+<SCRIPT>update( 91070464, 109294932 )</SCRIPT>
+<SCRIPT>update( 91176960, 109294932 )</SCRIPT>
+<SCRIPT>update( 91283456, 109294932 )</SCRIPT>
+<SCRIPT>update( 91389952, 109294932 )</SCRIPT>
+<SCRIPT>update( 91496448, 109294932 )</SCRIPT>
+<SCRIPT>update( 91602944, 109294932 )</SCRIPT>
+<SCRIPT>update( 91709440, 109294932 )</SCRIPT>
+<SCRIPT>update( 91815936, 109294932 )</SCRIPT>
+<SCRIPT>update( 91922432, 109294932 )</SCRIPT>
+<SCRIPT>update( 92028928, 109294932 )</SCRIPT>
+<SCRIPT>update( 92135424, 109294932 )</SCRIPT>
+<SCRIPT>update( 92241920, 109294932 )</SCRIPT>
+<SCRIPT>update( 92348416, 109294932 )</SCRIPT>
+<SCRIPT>update( 92454912, 109294932 )</SCRIPT>
+<SCRIPT>update( 92561408, 109294932 )</SCRIPT>
+<SCRIPT>update( 92667904, 109294932 )</SCRIPT>
+<SCRIPT>update( 92774400, 109294932 )</SCRIPT>
+<SCRIPT>update( 92880896, 109294932 )</SCRIPT>
+<SCRIPT>update( 92987392, 109294932 )</SCRIPT>
+<SCRIPT>update( 93093888, 109294932 )</SCRIPT>
+<SCRIPT>update( 93200384, 109294932 )</SCRIPT>
+<SCRIPT>update( 93306880, 109294932 )</SCRIPT>
+<SCRIPT>update( 93413376, 109294932 )</SCRIPT>
+<SCRIPT>update( 93519872, 109294932 )</SCRIPT>
+<SCRIPT>update( 93626368, 109294932 )</SCRIPT>
+<SCRIPT>update( 93732864, 109294932 )</SCRIPT>
+<SCRIPT>update( 93839360, 109294932 )</SCRIPT>
+<SCRIPT>update( 93945856, 109294932 )</SCRIPT>
+<SCRIPT>update( 94052352, 109294932 )</SCRIPT>
+<SCRIPT>update( 94158848, 109294932 )</SCRIPT>
+<SCRIPT>update( 94265344, 109294932 )</SCRIPT>
+<SCRIPT>update( 94371840, 109294932 )</SCRIPT>
+<SCRIPT>update( 94478336, 109294932 )</SCRIPT>
+<SCRIPT>update( 94584832, 109294932 )</SCRIPT>
+<SCRIPT>update( 94691328, 109294932 )</SCRIPT>
+<SCRIPT>update( 94797824, 109294932 )</SCRIPT>
+<SCRIPT>update( 94904320, 109294932 )</SCRIPT>
+<SCRIPT>update( 95010816, 109294932 )</SCRIPT>
+<SCRIPT>update( 95117312, 109294932 )</SCRIPT>
+<SCRIPT>update( 95223808, 109294932 )</SCRIPT>
+<SCRIPT>update( 95330304, 109294932 )</SCRIPT>
+<SCRIPT>update( 95436800, 109294932 )</SCRIPT>
+<SCRIPT>update( 95543296, 109294932 )</SCRIPT>
+<SCRIPT>update( 95649792, 109294932 )</SCRIPT>
+<SCRIPT>update( 95756288, 109294932 )</SCRIPT>
+<SCRIPT>update( 95862784, 109294932 )</SCRIPT>
+<SCRIPT>update( 95969280, 109294932 )</SCRIPT>
+<SCRIPT>update( 96075776, 109294932 )</SCRIPT>
+<SCRIPT>update( 96182272, 109294932 )</SCRIPT>
+<SCRIPT>update( 96288768, 109294932 )</SCRIPT>
+<SCRIPT>update( 96395264, 109294932 )</SCRIPT>
+<SCRIPT>update( 96501760, 109294932 )</SCRIPT>
+<SCRIPT>update( 96608256, 109294932 )</SCRIPT>
+<SCRIPT>update( 96714752, 109294932 )</SCRIPT>
+<SCRIPT>update( 96821248, 109294932 )</SCRIPT>
+<SCRIPT>update( 96919552, 109294932 )</SCRIPT>
+<SCRIPT>update( 97017856, 109294932 )</SCRIPT>
+<SCRIPT>update( 97116160, 109294932 )</SCRIPT>
+<SCRIPT>update( 97214464, 109294932 )</SCRIPT>
+<SCRIPT>update( 97312768, 109294932 )</SCRIPT>
+<SCRIPT>update( 97419264, 109294932 )</SCRIPT>
+<SCRIPT>update( 97525760, 109294932 )</SCRIPT>
+<SCRIPT>update( 97632256, 109294932 )</SCRIPT>
+<SCRIPT>update( 97738752, 109294932 )</SCRIPT>
+<SCRIPT>update( 97845248, 109294932 )</SCRIPT>
+<SCRIPT>update( 97951744, 109294932 )</SCRIPT>
+<SCRIPT>update( 98058240, 109294932 )</SCRIPT>
+<SCRIPT>update( 98164736, 109294932 )</SCRIPT>
+<SCRIPT>update( 98271232, 109294932 )</SCRIPT>
+<SCRIPT>update( 98377728, 109294932 )</SCRIPT>
+<SCRIPT>update( 98484224, 109294932 )</SCRIPT>
+<SCRIPT>update( 98590720, 109294932 )</SCRIPT>
+<SCRIPT>update( 98697216, 109294932 )</SCRIPT>
+<SCRIPT>update( 98803712, 109294932 )</SCRIPT>
+<SCRIPT>update( 98910208, 109294932 )</SCRIPT>
+<SCRIPT>update( 99016704, 109294932 )</SCRIPT>
+<SCRIPT>update( 99123200, 109294932 )</SCRIPT>
+<SCRIPT>update( 99229696, 109294932 )</SCRIPT>
+<SCRIPT>update( 99344384, 109294932 )</SCRIPT>
+<SCRIPT>update( 99459072, 109294932 )</SCRIPT>
+<SCRIPT>update( 99573760, 109294932 )</SCRIPT>
+<SCRIPT>update( 99688448, 109294932 )</SCRIPT>
+<SCRIPT>update( 99803136, 109294932 )</SCRIPT>
+<SCRIPT>update( 99917824, 109294932 )</SCRIPT>
+<SCRIPT>update( 100032512, 109294932 )</SCRIPT>
+<SCRIPT>update( 100147200, 109294932 )</SCRIPT>
+<SCRIPT>update( 100261888, 109294932 )</SCRIPT>
+<SCRIPT>update( 100376576, 109294932 )</SCRIPT>
+<SCRIPT>update( 100491264, 109294932 )</SCRIPT>
+<SCRIPT>update( 100605952, 109294932 )</SCRIPT>
+<SCRIPT>update( 100720640, 109294932 )</SCRIPT>
+<SCRIPT>update( 100835328, 109294932 )</SCRIPT>
+<SCRIPT>update( 100950016, 109294932 )</SCRIPT>
+<SCRIPT>update( 101064704, 109294932 )</SCRIPT>
+<SCRIPT>update( 101179392, 109294932 )</SCRIPT>
+<SCRIPT>update( 101294080, 109294932 )</SCRIPT>
+<SCRIPT>update( 101408768, 109294932 )</SCRIPT>
+<SCRIPT>update( 101523456, 109294932 )</SCRIPT>
+<SCRIPT>update( 101638144, 109294932 )</SCRIPT>
+<SCRIPT>update( 101752832, 109294932 )</SCRIPT>
+<SCRIPT>update( 101867520, 109294932 )</SCRIPT>
+<SCRIPT>update( 101982208, 109294932 )</SCRIPT>
+<SCRIPT>update( 102096896, 109294932 )</SCRIPT>
+<SCRIPT>update( 102211584, 109294932 )</SCRIPT>
+<SCRIPT>update( 102326272, 109294932 )</SCRIPT>
+<SCRIPT>update( 102440960, 109294932 )</SCRIPT>
+<SCRIPT>update( 102555648, 109294932 )</SCRIPT>
+<SCRIPT>update( 102670336, 109294932 )</SCRIPT>
+<SCRIPT>update( 102785024, 109294932 )</SCRIPT>
+<SCRIPT>update( 102899712, 109294932 )</SCRIPT>
+<SCRIPT>update( 103014400, 109294932 )</SCRIPT>
+<SCRIPT>update( 103137280, 109294932 )</SCRIPT>
+<SCRIPT>update( 103260160, 109294932 )</SCRIPT>
+<SCRIPT>update( 103383040, 109294932 )</SCRIPT>
+<SCRIPT>update( 103505920, 109294932 )</SCRIPT>
+<SCRIPT>update( 103628800, 109294932 )</SCRIPT>
+<SCRIPT>update( 103751680, 109294932 )</SCRIPT>
+<SCRIPT>update( 103874560, 109294932 )</SCRIPT>
+<SCRIPT>update( 103997440, 109294932 )</SCRIPT>
+<SCRIPT>update( 104120320, 109294932 )</SCRIPT>
+<SCRIPT>update( 104243200, 109294932 )</SCRIPT>
+<SCRIPT>update( 104366080, 109294932 )</SCRIPT>
+<SCRIPT>update( 104488960, 109294932 )</SCRIPT>
+<SCRIPT>update( 104611840, 109294932 )</SCRIPT>
+<SCRIPT>update( 104734720, 109294932 )</SCRIPT>
+<SCRIPT>update( 104857600, 109294932 )</SCRIPT>
+<SCRIPT>update( 104980480, 109294932 )</SCRIPT>
+<SCRIPT>update( 105103360, 109294932 )</SCRIPT>
+<SCRIPT>update( 105226240, 109294932 )</SCRIPT>
+<SCRIPT>update( 105349120, 109294932 )</SCRIPT>
+<SCRIPT>update( 105480192, 109294932 )</SCRIPT>
+<SCRIPT>update( 105611264, 109294932 )</SCRIPT>
+<SCRIPT>update( 105750528, 109294932 )</SCRIPT>
+<SCRIPT>update( 105889792, 109294932 )</SCRIPT>
+<SCRIPT>update( 106029056, 109294932 )</SCRIPT>
+<SCRIPT>update( 106160128, 109294932 )</SCRIPT>
+<SCRIPT>update( 106291200, 109294932 )</SCRIPT>
+<SCRIPT>update( 106422272, 109294932 )</SCRIPT>
+<SCRIPT>update( 106553344, 109294932 )</SCRIPT>
+<SCRIPT>update( 106684416, 109294932 )</SCRIPT>
+<SCRIPT>update( 106815488, 109294932 )</SCRIPT>
+<SCRIPT>update( 106954752, 109294932 )</SCRIPT>
+<SCRIPT>update( 107094016, 109294932 )</SCRIPT>
+<SCRIPT>update( 107233280, 109294932 )</SCRIPT>
+<SCRIPT>update( 107372544, 109294932 )</SCRIPT>
+<SCRIPT>update( 107511808, 109294932 )</SCRIPT>
+<SCRIPT>update( 107651072, 109294932 )</SCRIPT>
+<SCRIPT>update( 107790336, 109294932 )</SCRIPT>
+<SCRIPT>update( 107921408, 109294932 )</SCRIPT>
+<SCRIPT>update( 108052480, 109294932 )</SCRIPT>
+<SCRIPT>update( 108183552, 109294932 )</SCRIPT>
+<SCRIPT>update( 108314624, 109294932 )</SCRIPT>
+<SCRIPT>update( 108453888, 109294932 )</SCRIPT>
+<SCRIPT>update( 108593152, 109294932 )</SCRIPT>
+<SCRIPT>update( 108732416, 109294932 )</SCRIPT>
+<SCRIPT>update( 108871680, 109294932 )</SCRIPT>
+<SCRIPT>update( 109010944, 109294932 )</SCRIPT>
+<SCRIPT>update( 109150208, 109294932 )</SCRIPT>
+<SCRIPT>update( 109289472, 109294932 )</SCRIPT>
+<SCRIPT>finalize(109294932)</SCRIPT>
+<SCRIPT>scan_progress()</SCRIPT>
+<SCRIPT>scan_progress()</SCRIPT>
+<SCRIPT>scan_progress()</SCRIPT>
+<SCRIPT>scan_progress()</SCRIPT>
+<SCRIPT>scan_progress()</SCRIPT>
+<SCRIPT>scan_progress()</SCRIPT>
+<SCRIPT>scan_progress()</SCRIPT>
+<SCRIPT>scan_progress()</SCRIPT>
+<SCRIPT>
+completed( "http://archives.jenkins-ci.org/windows-stable-rc/jenkins-1.642.2.zip?type=Finjan-Download&slot=000002FA&id=341CECD7&location=AawaHQYAAAAAAAAAAAAAAAA=" )</SCRIPT>
+</BODY>
+<HEAD>
+</HEAD>
+</HTML>
